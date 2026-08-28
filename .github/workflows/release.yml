@@ -1,0 +1,89 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'ClipVault ${{ github.ref_name }}'
+          # draft so nothing goes live until reviewed and published by hand
+          releaseDraft: true
+          prerelease: false
+          # no auto-updater configured yet (no signing key) — plain installers only
+          uploadUpdaterJson: false
+
+      # The portable exe needs no setup; drop it anywhere and run it.
+      - shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          portable="ClipVault_${version}_x64-portable.exe"
+          cp "src-tauri/target/release/clipvault.exe" "$portable"
+          gh release upload "${{ github.ref_name }}" "$portable" --repo "${{ github.repository }}" --clobber
+
+  notes:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/releases/generate-notes" \
+            -f tag_name="${{ github.ref_name }}" --jq .body > notes.md
+
+          version="${GITHUB_REF_NAME#v}"
+          base="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+
+          cat > downloads.md <<EOF
+          ### Downloads
+
+          | File | Notes |
+          | --- | --- |
+          | [ClipVault_${version}_x64-setup.exe]($base/ClipVault_${version}_x64-setup.exe) | Installer (NSIS) |
+          | [ClipVault_${version}_x64_en-US.msi]($base/ClipVault_${version}_x64_en-US.msi) | Installer (MSI) |
+          | [ClipVault_${version}_x64-portable.exe]($base/ClipVault_${version}_x64-portable.exe) | Portable, no install |
+          EOF
+
+          cat downloads.md notes.md > full-notes.md
+          gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --notes-file full-notes.md
+
+  cleanup-on-failure:
+    needs: publish
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # The build failed, so the draft release (if tauri-action managed to create it
+      # before the failure) only has partial assets. Remove it rather than leave a
+      # broken half-release behind. Re-run the failed run (or workflow_dispatch) to
+      # retry once fixed; the tag itself is untouched.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete "${{ github.ref_name }}" --repo "${{ github.repository }}" --yes || true
