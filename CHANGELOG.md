@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-08-29
+
+- Rust era già installato sulla macchina (rustup, toolchain stable-x86_64-pc-windows-msvc) insieme ai Visual Studio Build Tools con workload C++ — solo non nel PATH della sessione. `cargo check`, `cargo fmt --check` e `cargo clippy` passano puliti sul codice Rust dello scaffold.
+- Aggiunti `.github/workflows/ci.yml` e `.github/workflows/release.yml`, adattati dalla pipeline di [MD-Viewer](https://github.com/TarducciM/MD-Viewer) (altro progetto Tauri dell'utente) e ristretti a Windows soltanto:
+  - CI: `cargo fmt --check` + `cargo clippy -D warnings` + `cargo test` su ogni push/PR.
+  - Release: su tag `v*.*.*`, build con `tauri-action` (installer NSIS + MSI), upload di un eseguibile portable, release GitHub in bozza con changelog e tabella download auto-generati, cleanup automatico se una piattaforma fallisce.
+  - Auto-updater non ancora collegato (nessuna chiave di firma generata) — solo installer classici per ora.
+- Repo GitHub pubblico creato e pushato: [github.com/TarducciM/ClipVault](https://github.com/TarducciM/ClipVault).
+
 ## 2026-08-28
 
 - Progetto avviato: clipboard manager per Windows, open source, ispirato a Maccy (macOS).
