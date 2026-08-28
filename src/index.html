@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClipVault</title>
+    <script type="module" src="/main.js" defer></script>
+  </head>
+
+  <body>
+    <main class="app">
+      <div class="search-bar">
+        <input id="search-input" type="text" placeholder="Cerca nella cronologia..." autofocus />
+      </div>
+
+      <ul id="history-list" class="history-list"></ul>
+
+      <p id="empty-state" class="empty-state">
+        Nessuna voce in cronologia.<br />
+        Copia qualcosa per iniziare.
+      </p>
+    </main>
+  </body>
+</html>

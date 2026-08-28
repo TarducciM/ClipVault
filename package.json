@@ -1,0 +1,16 @@
+{
+  "name": "clipvault",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Clipboard manager for Windows: local history, search, and pins. No cloud, no telemetry.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
