@@ -1,0 +1,32 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#2E1065"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="clip">
+      <rect x="64" y="64" width="896" height="896" rx="200"/>
+    </clipPath>
+  </defs>
+
+  <!-- squircle background -->
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <rect x="64" y="64" width="896" height="470" fill="url(#gloss)" clip-path="url(#clip)"/>
+
+  <!-- clipboard body -->
+  <rect x="332" y="272" width="360" height="512" rx="52" fill="none" stroke="#ffffff" stroke-width="46"/>
+
+  <!-- clip tab -->
+  <rect x="456" y="222" width="112" height="86" rx="26" fill="none" stroke="#ffffff" stroke-width="40"/>
+
+  <!-- history rows: newest (longer) above older (shorter) -->
+  <path d="M410 462 h204" fill="none" stroke="#ffffff" stroke-width="40" stroke-linecap="round"/>
+  <path d="M410 574 h140" fill="none" stroke="#ffffff" stroke-width="40" stroke-linecap="round" stroke-opacity="0.65"/>
+
+  <!-- pin: a favorited entry -->
+  <circle cx="646" cy="686" r="56" fill="#2DD4BF"/>
+</svg>

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terms — ClipVault</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #150B2E; --bg-elevated: #1F1240; --line: #35205E;
+    --accent: #8B5CF6; --accent-soft: #C1AEF5;
+    --text: #F3EEFF; --text-dim: #AFA0D4; --text-faint: #6E5F92;
+    --display: 'Sora', system-ui, sans-serif;
+    --body: 'Inter', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--body); line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent-soft); }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 28px; }
+
+  header.site { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; max-width: 1120px; margin: 0 auto; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand .mark { width: 28px; height: 28px; border-radius: 8px; }
+  .brand .word { font-family: var(--display); font-weight: 800; font-size: 16px; color: var(--text); }
+  header.site nav a { font-family: var(--mono); font-size: 13px; color: var(--text-dim); text-decoration: none; }
+  header.site nav a:hover { color: var(--text); }
+
+  main { padding: 40px 0 90px; }
+  .eyebrow { font-family: var(--mono); font-size: 13px; color: var(--accent-soft); margin-bottom: 10px; }
+  h1 { font-family: var(--display); font-weight: 800; font-size: 34px; letter-spacing: -0.02em; margin: 0 0 6px; }
+  .updated { font-family: var(--mono); font-size: 13px; color: var(--text-faint); margin: 0 0 40px; }
+  h2 { font-family: var(--display); font-weight: 700; font-size: 18px; margin: 36px 0 10px; letter-spacing: -0.01em; }
+  p, li { font-size: 15px; color: var(--text-dim); }
+  strong { color: var(--text); }
+  code { font-family: var(--mono); font-size: 13px; background: rgba(139,92,246,0.14); color: var(--accent-soft); padding: 1px 6px; border-radius: 5px; }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 8px; }
+
+  footer.site { border-top: 1px solid var(--line); padding: 28px 0; }
+  footer p { font-size: 13px; color: var(--text-faint); margin: 0; }
+  footer a { color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<header class="site wrap">
+  <a class="brand" href="index.html">
+    <svg class="mark" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs><linearGradient id="bgg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8B5CF6"/><stop offset="1" stop-color="#2E1065"/></linearGradient></defs>
+      <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bgg)"/>
+      <rect x="332" y="272" width="360" height="512" rx="52" fill="none" stroke="#fff" stroke-width="46"/>
+      <rect x="456" y="222" width="112" height="86" rx="26" fill="none" stroke="#fff" stroke-width="40"/>
+      <path d="M410 462 h204" fill="none" stroke="#fff" stroke-width="40" stroke-linecap="round"/>
+      <path d="M410 574 h140" fill="none" stroke="#fff" stroke-width="40" stroke-linecap="round" stroke-opacity="0.65"/>
+      <circle cx="646" cy="686" r="56" fill="#2DD4BF"/>
+    </svg>
+    <span class="word">ClipVault</span>
+  </a>
+  <nav><a href="index.html">← Back</a></nav>
+</header>
+
+<div class="wrap">
+<main>
+  <div class="eyebrow"># terms</div>
+  <h1>Terms</h1>
+  <p class="updated">Last updated: August 29, 2026</p>
+
+  <p>ClipVault is free, open-source software. These terms are short on purpose — most of what would normally go here is already handled by the license.</p>
+
+  <h2>License</h2>
+  <p>ClipVault is released under the <a href="https://github.com/TarducciM/ClipVault/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>. In practice: you can use, copy, modify, and redistribute it, for personal or commercial purposes, without asking permission — the only real condition is keeping the copyright notice in copies you redistribute.</p>
+
+  <h2>No warranty</h2>
+  <p>The MIT License already says this, but plainly: ClipVault is provided <strong>as-is</strong>, with no warranty of any kind. It's a personal project maintained on a best-effort basis, currently in early development — it isn't guaranteed to be bug-free or even feature-complete, and there's no service-level commitment behind it. Since your clipboard history lives only on your own device, keep your own backups of anything important, as you would with any local tool.</p>
+
+  <h2>Acceptable use</h2>
+  <p>Don't use ClipVault's name, icon, or branding to imply an official affiliation with a project or company it doesn't have. Beyond that, there are no usage restrictions beyond what the MIT License itself sets out.</p>
+
+  <h2>This website</h2>
+  <p>The site is provided for the same reason as the app: to be useful, with no strings attached. See the <a href="privacy.html">Privacy Policy</a> for what it does and doesn't do with your data, and the <a href="cookie-policy.html">Cookie Policy</a> for cookies specifically (there are none).</p>
+
+  <h2>Changes</h2>
+  <p>These terms may be updated if the project's scope changes — the date at the top always reflects the last real revision.</p>
+
+  <h2>Publisher and governing law</h2>
+  <p>ClipVault is published by <strong>Michele Tarducci</strong> as an individual open-source maintainer, not through a registered company. Absent a company venue, any dispute would be handled under the law and courts applicable to the maintainer's place of residence.</p>
+
+  <h2>Questions</h2>
+  <p>Open an issue on <a href="https://github.com/TarducciM/ClipVault/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+</main>
+</div>
+
+<div class="wrap">
+<footer class="site">
+  <p>ClipVault — MIT licensed. <a href="index.html">Home</a> · <a href="privacy.html">Privacy</a> · <a href="cookie-policy.html">Cookie Policy</a></p>
+</footer>
+</div>
+
+</body>
+</html>
