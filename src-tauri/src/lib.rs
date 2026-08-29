@@ -58,6 +58,7 @@ pub fn run() {
             commands::get_entry_preview,
             commands::get_settings,
             commands::set_settings,
+            commands::get_stats,
             commands::set_hotkey,
             commands::show_settings_window,
             commands::should_show_onboarding,

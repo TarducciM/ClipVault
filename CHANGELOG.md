@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-29 — Statistiche, scadenza per data, lingua, vista estesa, anteprima zip
+
+- Verificato **per davvero** (non solo scritto) che l'avvio automatico con Windows funziona: attivato dalla UI, controllata la voce creata in `HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run` (percorso corretto verso l'exe), poi disattivato e confermata la rimozione.
+- Aggiunta impostazione **elimina automaticamente le voci non preferite più vecchie di X giorni** (0 = mai), indipendente dal limite basato sul conteggio.
+- Aggiunta sezione **Statistiche** nelle Impostazioni: voci totali, per tipo (testo/immagini/file), preferiti, spazio occupato su disco, voce più vecchia/recente — dati reali, verificati con l'app in esecuzione.
+- Aggiunta **vista estesa** della cronologia (icona 🕒 accanto alla ricerca): mostra l'orario di copia su ogni voce e raggruppa per giorno ("Oggi", "Ieri", data) invece del normale ordinamento preferiti-prima. Verificata dal vivo con automazione reale.
+- Aggiunta **anteprima contenuto zip**: aprendo l'anteprima di un file `.zip` (doppio click) elenca i file contenuti con dimensione, senza estrarlo. Verificata la logica di lettura contro un archivio zip reale (nomi e dimensioni esatti).
+- Aggiunto **cambio lingua ITA/ENG**: sistema di traduzione leggero (`src/i18n.js`, dizionario piatto + attributi `data-i18n`), tutte le stringhe statiche e dinamiche del popup e delle Impostazioni tradotte in entrambe le lingue (verificato che le due lingue abbiano esattamente le stesse chiavi). **Bug trovato e sistemato durante la verifica**: il popup principale applicava le traduzioni solo al primo caricamento della pagina, quindi cambiare lingua dalle Impostazioni non si vedeva finché non si riavviava l'app — ora le traduzioni vengono riapplicate ogni volta che il popup si riapre.
+- Nota sui limiti della verifica automatizzata in questa sessione: il doppio click simulato e l'interazione con un menu a tendina HTML nativo non sono stati riproducibili in modo affidabile a causa di un conflitto di focus/z-order con un'altra finestra (di un'altra sessione Claude Code) sulla stessa macchina — non un problema del codice. In quei due casi la verifica si è appoggiata su test diretti della logica di backend (stessa funzione di lettura zip, in un binario a parte, contro l'archivio di test) invece che sull'interazione UI dal vivo.
+
 ## 2026-08-29 — Menu contestuale, Impostazioni, anteprima, preferiti
 
 - Rimosso il menu tasto destro nativo del browser (WebView2/Chromium) su tutto il popup; sostituito con un menu contestuale proprio (Copia, Apri, Mostra nella cartella, Aggiungi/Rimuovi preferiti, Elimina — le voci "Apri"/"Mostra nella cartella" solo per immagini e file).

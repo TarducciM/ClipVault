@@ -7,6 +7,7 @@ let debounceHandle;
 let currentEntries = [];
 let selectedIndex = 0;
 let favoritesOnly = false;
+let extendedView = false;
 
 function iconFor(kind) {
   switch (kind) {
@@ -26,6 +27,22 @@ function sectionHeader(label) {
   return header;
 }
 
+function dayLabel(timestampMs) {
+  const date = new Date(timestampMs);
+  const now = new Date();
+  const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(now) - startOfDay(date)) / 86400000);
+  if (diffDays === 0) return I18n.t("dayToday");
+  if (diffDays === 1) return I18n.t("dayYesterday");
+  const locale = I18n.currentLang() === "en" ? "en-US" : "it-IT";
+  return date.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+}
+
+function timeLabel(timestampMs) {
+  const locale = I18n.currentLang() === "en" ? "en-US" : "it-IT";
+  return new Date(timestampMs).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+}
+
 function showStatus(message) {
   const status = document.querySelector("#status-line");
   status.textContent = message;
@@ -34,16 +51,16 @@ function showStatus(message) {
   showStatus.handle = setTimeout(() => status.classList.remove("visible"), 2500);
 }
 
-async function runAction(promise, errorPrefix) {
+async function runAction(promise, errorKey) {
   try {
     await promise;
   } catch (err) {
-    showStatus(`${errorPrefix}: ${err}`);
+    showStatus(`${I18n.t(errorKey)}: ${err}`);
   }
 }
 
 async function selectEntry(id) {
-  await runAction(invoke("copy_entry_to_clipboard", { id }), "Impossibile copiare");
+  await runAction(invoke("copy_entry_to_clipboard", { id }), "errorCopy");
   getCurrentWindow().hide();
 }
 
@@ -99,19 +116,21 @@ async function showPreview(entry) {
       const table = document.createElement("table");
       table.className = "preview-files";
       const headerRow = document.createElement("tr");
-      ["Nome", "Dimensione", "Modificato", "SHA1", "CRC32"].forEach((label) => {
-        const th = document.createElement("th");
-        th.textContent = label;
-        headerRow.appendChild(th);
-      });
+      ["previewFileName", "previewFileSize", "previewFileModified", "previewFileSha1", "previewFileCrc32"].forEach(
+        (key) => {
+          const th = document.createElement("th");
+          th.textContent = I18n.t(key);
+          headerRow.appendChild(th);
+        },
+      );
       table.appendChild(headerRow);
 
       for (const file of data.files) {
         const row = document.createElement("tr");
-        const hashNote = file.tooLarge ? "file troppo grande" : "-";
+        const hashNote = file.tooLarge ? I18n.t("previewFileTooLarge") : "-";
         const cells = [
           file.name,
-          file.exists ? formatBytes(file.sizeBytes) : "non trovato",
+          file.exists ? formatBytes(file.sizeBytes) : I18n.t("previewFileNotFound"),
           file.modified ? new Date(file.modified).toLocaleString("it-IT") : "-",
           file.sha1 || hashNote,
           file.crc32 || hashNote,
@@ -122,11 +141,33 @@ async function showPreview(entry) {
           row.appendChild(td);
         });
         table.appendChild(row);
+
+        if (file.zipEntries) {
+          const zipRow = document.createElement("tr");
+          const zipCell = document.createElement("td");
+          zipCell.colSpan = 5;
+          zipCell.className = "zip-contents";
+
+          const zipTitle = document.createElement("div");
+          zipTitle.className = "zip-contents-title";
+          zipTitle.textContent = I18n.t("previewZipContents");
+          zipCell.appendChild(zipTitle);
+
+          const zipList = document.createElement("ul");
+          for (const zipEntry of file.zipEntries) {
+            const li = document.createElement("li");
+            li.textContent = zipEntry.isDir ? `${zipEntry.name}` : `${zipEntry.name} (${formatBytes(zipEntry.sizeBytes)})`;
+            zipList.appendChild(li);
+          }
+          zipCell.appendChild(zipList);
+          zipRow.appendChild(zipCell);
+          table.appendChild(zipRow);
+        }
       }
       content.appendChild(table);
     }
   } catch (err) {
-    content.textContent = `Errore: ${err}`;
+    content.textContent = `${I18n.t("previewErrorPrefix")}: ${err}`;
   }
 }
 
@@ -150,21 +191,19 @@ function showContextMenu(x, y, entry) {
     menu.appendChild(btn);
   };
 
-  addItem("Copia", () => selectEntry(entry.id));
+  addItem(I18n.t("contextCopy"), () => selectEntry(entry.id));
 
   if (entry.kind === "image" || entry.kind === "files") {
-    addItem("Apri", () => runAction(invoke("open_entry", { id: entry.id }), "Impossibile aprire"));
-    addItem("Mostra nella cartella", () =>
-      runAction(invoke("reveal_entry", { id: entry.id }), "Impossibile mostrare la cartella"),
-    );
+    addItem(I18n.t("contextOpen"), () => runAction(invoke("open_entry", { id: entry.id }), "errorOpen"));
+    addItem(I18n.t("contextReveal"), () => runAction(invoke("reveal_entry", { id: entry.id }), "errorReveal"));
   }
 
-  addItem(entry.pinned ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti", async () => {
+  addItem(entry.pinned ? I18n.t("contextUnpin") : I18n.t("contextPin"), async () => {
     await invoke("toggle_pin", { id: entry.id, pinned: !entry.pinned });
     refresh();
   });
 
-  addItem("Elimina", async () => {
+  addItem(I18n.t("contextDelete"), async () => {
     await invoke("delete_entry", { id: entry.id });
     refresh();
   });
@@ -187,6 +226,85 @@ function highlightSelected() {
 
 const QUICK_SELECT_COUNT = 9;
 
+function buildHistoryItem(entry, index) {
+  const item = document.createElement("li");
+  item.className = "history-item";
+  item.dataset.id = entry.id;
+
+  if (index < QUICK_SELECT_COUNT) {
+    const number = document.createElement("span");
+    number.className = "item-number";
+    number.textContent = String(index + 1);
+    item.appendChild(number);
+  }
+
+  if (entry.thumbnail) {
+    const img = document.createElement("img");
+    img.className = "history-thumb";
+    img.src = `data:image/png;base64,${entry.thumbnail}`;
+    item.appendChild(img);
+  } else {
+    const badge = document.createElement("span");
+    badge.className = "history-icon";
+    badge.textContent = iconFor(entry.kind);
+    item.appendChild(badge);
+  }
+
+  const text = document.createElement("span");
+  text.className = "history-text";
+  text.textContent = entry.preview;
+  item.appendChild(text);
+
+  if (extendedView) {
+    const time = document.createElement("span");
+    time.className = "history-time";
+    time.textContent = timeLabel(entry.createdAt);
+    item.appendChild(time);
+  }
+
+  const pin = document.createElement("button");
+  pin.className = "pin-btn" + (entry.pinned ? " pinned" : "");
+  pin.type = "button";
+  pin.title = entry.pinned ? I18n.t("contextUnpin") : I18n.t("contextPin");
+  pin.textContent = entry.pinned ? "★" : "☆";
+  pin.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    await invoke("toggle_pin", { id: entry.id, pinned: !entry.pinned });
+    refresh();
+  });
+  item.appendChild(pin);
+
+  const remove = document.createElement("button");
+  remove.className = "delete-btn";
+  remove.type = "button";
+  remove.title = I18n.t("contextDelete");
+  remove.textContent = "×";
+  remove.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    await invoke("delete_entry", { id: entry.id });
+    refresh();
+  });
+  item.appendChild(remove);
+
+  // Single click copies, but it's delayed briefly so a second click (dblclick) can
+  // cancel it and open the preview instead, rather than copying-and-hiding first.
+  item.addEventListener("click", () => {
+    clearTimeout(item._clickTimer);
+    item._clickTimer = setTimeout(() => selectEntry(entry.id), 220);
+  });
+  item.addEventListener("dblclick", (event) => {
+    event.stopPropagation();
+    clearTimeout(item._clickTimer);
+    showPreview(entry);
+  });
+  item.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    showContextMenu(event.clientX, event.clientY, entry);
+  });
+
+  return item;
+}
+
 function renderHistory(entries) {
   currentEntries = entries;
   selectedIndex = entries.length > 0 ? 0 : -1;
@@ -197,96 +315,44 @@ function renderHistory(entries) {
   list.innerHTML = "";
 
   if (entries.length === 0) {
-    emptyState.innerHTML = favoritesOnly
-      ? "Nessun preferito.<br />Clicca la stella su una voce per aggiungerla."
-      : "Nessuna voce in cronologia.<br />Copia qualcosa per iniziare.";
+    emptyState.innerHTML = "";
+    const title = document.createElement("span");
+    title.textContent = I18n.t(favoritesOnly ? "emptyFavoritesTitle" : "emptyHistoryTitle");
+    const subtitle = document.createElement("span");
+    subtitle.textContent = I18n.t(favoritesOnly ? "emptyFavoritesSubtitle" : "emptyHistorySubtitle");
+    emptyState.appendChild(title);
+    emptyState.appendChild(document.createElement("br"));
+    emptyState.appendChild(subtitle);
     emptyState.style.display = "block";
     return;
   }
   emptyState.style.display = "none";
 
-  const hasPinned = entries.some((entry) => entry.pinned);
-  let sectionShown = { pinned: false, unpinned: false };
-
-  entries.forEach((entry, index) => {
-    if (entry.pinned && !sectionShown.pinned) {
-      list.appendChild(sectionHeader("★ Preferiti"));
-      sectionShown.pinned = true;
-    } else if (!entry.pinned && hasPinned && !sectionShown.unpinned) {
-      list.appendChild(sectionHeader("Cronologia"));
-      sectionShown.unpinned = true;
-    }
-
-    const item = document.createElement("li");
-    item.className = "history-item";
-    item.dataset.id = entry.id;
-
-    if (index < QUICK_SELECT_COUNT) {
-      const number = document.createElement("span");
-      number.className = "item-number";
-      number.textContent = String(index + 1);
-      item.appendChild(number);
-    }
-
-    if (entry.thumbnail) {
-      const img = document.createElement("img");
-      img.className = "history-thumb";
-      img.src = `data:image/png;base64,${entry.thumbnail}`;
-      item.appendChild(img);
-    } else {
-      const badge = document.createElement("span");
-      badge.className = "history-icon";
-      badge.textContent = iconFor(entry.kind);
-      item.appendChild(badge);
-    }
-
-    const text = document.createElement("span");
-    text.className = "history-text";
-    text.textContent = entry.preview;
-    item.appendChild(text);
-
-    const pin = document.createElement("button");
-    pin.className = "pin-btn" + (entry.pinned ? " pinned" : "");
-    pin.type = "button";
-    pin.title = entry.pinned ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
-    pin.textContent = entry.pinned ? "★" : "☆";
-    pin.addEventListener("click", async (event) => {
-      event.stopPropagation();
-      await invoke("toggle_pin", { id: entry.id, pinned: !entry.pinned });
-      refresh();
+  if (extendedView) {
+    let lastDay = null;
+    entries.forEach((entry, index) => {
+      const day = dayLabel(entry.createdAt);
+      if (day !== lastDay) {
+        list.appendChild(sectionHeader(day));
+        lastDay = day;
+      }
+      list.appendChild(buildHistoryItem(entry, index));
     });
-    item.appendChild(pin);
+  } else {
+    const hasPinned = entries.some((entry) => entry.pinned);
+    let sectionShown = { pinned: false, unpinned: false };
 
-    const remove = document.createElement("button");
-    remove.className = "delete-btn";
-    remove.type = "button";
-    remove.title = "Elimina";
-    remove.textContent = "×";
-    remove.addEventListener("click", async (event) => {
-      event.stopPropagation();
-      await invoke("delete_entry", { id: entry.id });
-      refresh();
+    entries.forEach((entry, index) => {
+      if (entry.pinned && !sectionShown.pinned) {
+        list.appendChild(sectionHeader(I18n.t("sectionFavorites")));
+        sectionShown.pinned = true;
+      } else if (!entry.pinned && hasPinned && !sectionShown.unpinned) {
+        list.appendChild(sectionHeader(I18n.t("sectionHistory")));
+        sectionShown.unpinned = true;
+      }
+      list.appendChild(buildHistoryItem(entry, index));
     });
-    item.appendChild(remove);
-
-    // Single click copies, but it's delayed briefly so a second click (dblclick) can
-    // cancel it and open the preview instead, rather than copying-and-hiding first.
-    item.addEventListener("click", () => {
-      clearTimeout(item._clickTimer);
-      item._clickTimer = setTimeout(() => selectEntry(entry.id), 220);
-    });
-    item.addEventListener("dblclick", (event) => {
-      event.stopPropagation();
-      clearTimeout(item._clickTimer);
-      showPreview(entry);
-    });
-    item.addEventListener("contextmenu", (event) => {
-      event.preventDefault();
-      showContextMenu(event.clientX, event.clientY, entry);
-    });
-
-    list.appendChild(item);
-  });
+  }
 
   highlightSelected();
 }
@@ -297,6 +363,9 @@ async function refresh() {
   if (favoritesOnly) {
     entries = entries.filter((entry) => entry.pinned);
   }
+  if (extendedView) {
+    entries = [...entries].sort((a, b) => b.createdAt - a.createdAt);
+  }
   renderHistory(entries);
 }
 
@@ -305,7 +374,15 @@ function toggleFavoritesOnly() {
   const btn = document.querySelector("#favorites-toggle");
   btn.classList.toggle("active", favoritesOnly);
   btn.textContent = favoritesOnly ? "★" : "☆";
-  btn.title = favoritesOnly ? "Mostra tutta la cronologia" : "Mostra solo i preferiti";
+  btn.title = I18n.t(favoritesOnly ? "favoritesTooltipOff" : "favoritesTooltipOn");
+  refresh();
+}
+
+function toggleExtendedView() {
+  extendedView = !extendedView;
+  const btn = document.querySelector("#extended-toggle");
+  btn.classList.toggle("active", extendedView);
+  btn.title = I18n.t(extendedView ? "extendedTooltipOff" : "extendedTooltipOn");
   refresh();
 }
 
@@ -323,10 +400,13 @@ async function activateSelection() {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  I18n.applyStaticTranslations();
+
   searchInput = document.querySelector("#search-input");
   const clearBtn = document.querySelector("#clear-history-btn");
   const settingsBtn = document.querySelector("#settings-btn");
   const favoritesBtn = document.querySelector("#favorites-toggle");
+  const extendedBtn = document.querySelector("#extended-toggle");
 
   document.addEventListener("contextmenu", (event) => event.preventDefault());
   document.addEventListener("click", (event) => {
@@ -377,17 +457,16 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   clearBtn.addEventListener("click", async () => {
-    if (confirm("Cancellare tutta la cronologia (esclusi i preferiti)?")) {
+    if (confirm(I18n.t("confirmClearHistory"))) {
       await invoke("clear_history");
       refresh();
     }
   });
 
-  settingsBtn.addEventListener("click", () =>
-    runAction(invoke("show_settings_window"), "Impossibile aprire le impostazioni"),
-  );
+  settingsBtn.addEventListener("click", () => runAction(invoke("show_settings_window"), "errorSettingsOpen"));
 
   favoritesBtn.addEventListener("click", toggleFavoritesOnly);
+  extendedBtn.addEventListener("click", toggleExtendedView);
 
   document.querySelector("#onboarding-dismiss").addEventListener("click", async () => {
     hideOnboarding();
@@ -401,6 +480,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
   listen("history-updated", refresh);
   listen("popup-shown", () => {
+    // Re-apply in case the language changed in Settings since the popup last loaded
+    // (a language change there only updates localStorage; each window's static
+    // data-i18n text needs to be re-rendered from it separately).
+    I18n.applyStaticTranslations();
     searchInput.value = "";
     hideContextMenu();
     searchInput.focus();

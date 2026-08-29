@@ -5,28 +5,30 @@
     <link rel="stylesheet" href="styles.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ClipVault</title>
+    <script src="/i18n.js"></script>
     <script type="module" src="/main.js" defer></script>
   </head>
 
   <body>
     <main class="app">
       <div class="search-bar">
-        <input id="search-input" type="text" placeholder="Cerca nella cronologia..." autofocus />
-        <button id="favorites-toggle" type="button" class="icon-toggle-btn" title="Mostra solo i preferiti">☆</button>
+        <input id="search-input" type="text" data-i18n-placeholder="searchPlaceholder" autofocus />
+        <button id="extended-toggle" type="button" class="icon-toggle-btn" data-i18n-title="extendedTooltipOn">🕒</button>
+        <button id="favorites-toggle" type="button" class="icon-toggle-btn" data-i18n-title="favoritesTooltipOn">☆</button>
       </div>
 
       <ul id="history-list" class="history-list"></ul>
 
       <p id="empty-state" class="empty-state">
-        Nessuna voce in cronologia.<br />
-        Copia qualcosa per iniziare.
+        <span data-i18n="emptyHistoryTitle">Nessuna voce in cronologia.</span><br />
+        <span data-i18n="emptyHistorySubtitle">Copia qualcosa per iniziare.</span>
       </p>
 
       <p id="status-line" class="status-line"></p>
 
       <div class="footer-bar">
-        <button id="settings-btn" type="button" class="text-btn icon-btn" title="Impostazioni">⚙</button>
-        <button id="clear-history-btn" type="button" class="text-btn">Cancella cronologia</button>
+        <button id="settings-btn" type="button" class="text-btn icon-btn" data-i18n-title="settingsTooltip">⚙</button>
+        <button id="clear-history-btn" type="button" class="text-btn" data-i18n="clearHistory">Cancella cronologia</button>
       </div>
     </main>
 
@@ -34,17 +36,17 @@
 
     <div id="onboarding" class="onboarding">
       <div class="onboarding-box">
-        <h2>Benvenuto in ClipVault</h2>
+        <h2 data-i18n="onboardingTitle">Benvenuto in ClipVault</h2>
         <ul>
-          <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> apre/chiude questo popup da qualsiasi punto di Windows (personalizzabile nelle Impostazioni)</li>
-          <li>Clicca una voce per copiarla e incollarla subito dopo</li>
-          <li>Doppio click su una voce per un'anteprima grande (testo intero, immagine, o dettagli file)</li>
-          <li>Tasto destro su una voce per aprirla, mostrarla nella cartella, metterla nei preferiti o eliminarla</li>
-          <li>La stella ☆ sulla voce la aggiunge ai preferiti, sempre in cima alla lista</li>
-          <li>La stella ☆ accanto alla ricerca mostra solo i preferiti</li>
-          <li>⚙ in basso apre le Impostazioni</li>
+          <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> <span data-i18n="onboardingHotkey"></span></li>
+          <li data-i18n="onboardingClick"></li>
+          <li data-i18n="onboardingDblClick"></li>
+          <li data-i18n="onboardingRightClick"></li>
+          <li data-i18n="onboardingPin"></li>
+          <li data-i18n="onboardingFavorites"></li>
+          <li data-i18n="onboardingSettings"></li>
         </ul>
-        <button id="onboarding-dismiss" type="button">Ho capito</button>
+        <button id="onboarding-dismiss" type="button" data-i18n="onboardingDismiss">Ho capito</button>
       </div>
     </div>
 
@@ -52,7 +54,7 @@
       <div class="onboarding-box preview-box">
         <div class="preview-header">
           <span id="preview-title"></span>
-          <button id="preview-close" type="button" class="text-btn icon-btn" title="Chiudi">×</button>
+          <button id="preview-close" type="button" class="text-btn icon-btn" data-i18n-title="previewClose">×</button>
         </div>
         <div id="preview-content" class="preview-content"></div>
       </div>

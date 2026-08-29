@@ -137,6 +137,13 @@ body {
   text-overflow: ellipsis;
 }
 
+.history-time {
+  flex-shrink: 0;
+  font-size: 0.75em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(0, 0, 0, 0.35);
+}
+
 .pin-btn {
   flex-shrink: 0;
   border: none;
@@ -392,6 +399,39 @@ body {
   word-break: break-all;
 }
 
+.zip-contents {
+  padding: 4px 8px 10px 24px !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.zip-contents-title {
+  font-weight: 500;
+  margin-bottom: 4px;
+  opacity: 0.7;
+}
+
+.zip-contents ul {
+  margin: 0;
+  padding-left: 16px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.stats-table {
+  border-collapse: collapse;
+  font-size: 0.85em;
+}
+
+.stats-table td {
+  padding: 3px 10px 3px 0;
+}
+
+.stats-table td:last-child {
+  font-variant-numeric: tabular-nums;
+  color: rgba(0, 0, 0, 0.6);
+  text-align: right;
+}
+
 .settings {
   padding: 18px 20px;
   display: flex;
@@ -538,6 +578,10 @@ kbd {
     color: rgba(255, 255, 255, 0.3);
   }
 
+  .history-time {
+    color: rgba(255, 255, 255, 0.35);
+  }
+
   .pin-btn {
     color: rgba(255, 255, 255, 0.3);
   }
@@ -606,6 +650,14 @@ kbd {
   .preview-files th,
   .preview-files td {
     border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .zip-contents {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .stats-table td:last-child {
+    color: rgba(255, 255, 255, 0.6);
   }
 
   .field input[type="number"],

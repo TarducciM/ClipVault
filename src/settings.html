@@ -5,15 +5,24 @@
     <link rel="stylesheet" href="styles.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Impostazioni ClipVault</title>
+    <script src="/i18n.js"></script>
     <script type="module" src="/settings.js" defer></script>
   </head>
 
   <body>
     <main class="settings">
-      <h1>Impostazioni</h1>
+      <h1 data-i18n="settingsTitle">Impostazioni</h1>
 
       <label class="field">
-        <span>Apri/chiudi il popup da qualsiasi punto di Windows</span>
+        <span data-i18n="settingsLanguageLabel">Lingua</span>
+        <select id="language">
+          <option value="it">Italiano</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span data-i18n="settingsHotkeyLabel">Apri/chiudi il popup da qualsiasi punto di Windows</span>
         <select id="hotkey">
           <option value="Ctrl+Shift+V">Ctrl + Shift + V</option>
           <option value="Ctrl+Alt+V">Ctrl + Alt + V</option>
@@ -24,33 +33,52 @@
       </label>
 
       <label class="field">
-        <span>Lunghezza massima cronologia (voci non preferite)</span>
+        <span data-i18n="settingsMaxHistoryLabel">Lunghezza massima cronologia (voci non preferite)</span>
         <input id="max-history" type="number" min="10" max="5000" step="10" />
       </label>
 
       <label class="field">
-        <span>Dimensione massima file (MB, 0 = illimitato) — oltre non si salva l'immagine per intero e non si calcola SHA1/CRC32 nell'anteprima file</span>
+        <span data-i18n="settingsMaxFileLabel">Dimensione massima file</span>
         <input id="max-file-mb" type="number" min="0" max="500" step="1" />
+      </label>
+
+      <label class="field">
+        <span data-i18n="settingsMaxAgeLabel">Elimina automaticamente le voci più vecchie di X giorni</span>
+        <input id="max-age-days" type="number" min="0" max="3650" step="1" />
       </label>
 
       <label class="field checkbox-field">
         <input id="autostart" type="checkbox" />
-        <span>Avvia automaticamente all'accesso a Windows</span>
+        <span data-i18n="settingsAutostartLabel">Avvia automaticamente all'accesso a Windows</span>
       </label>
 
       <div class="settings-actions">
-        <button id="save-btn" type="button">Salva</button>
+        <button id="save-btn" type="button" data-i18n="settingsSave">Salva</button>
         <span id="save-status" class="save-status"></span>
       </div>
 
       <div class="field">
-        <span class="field-label">Altre scorciatoie (dentro al popup)</span>
+        <span class="field-label" data-i18n="settingsStatsTitle">Statistiche</span>
+        <table class="stats-table" id="stats-table">
+          <tr><td data-i18n="statsTotal">Voci totali</td><td id="stat-total">—</td></tr>
+          <tr><td data-i18n="statsText">Testo</td><td id="stat-text">—</td></tr>
+          <tr><td data-i18n="statsImages">Immagini</td><td id="stat-images">—</td></tr>
+          <tr><td data-i18n="statsFiles">File</td><td id="stat-files">—</td></tr>
+          <tr><td data-i18n="statsPinned">Preferiti</td><td id="stat-pinned">—</td></tr>
+          <tr><td data-i18n="statsDbSize">Spazio occupato</td><td id="stat-size">—</td></tr>
+          <tr><td data-i18n="statsOldest">Voce più vecchia</td><td id="stat-oldest">—</td></tr>
+          <tr><td data-i18n="statsNewest">Voce più recente</td><td id="stat-newest">—</td></tr>
+        </table>
+      </div>
+
+      <div class="field">
+        <span class="field-label" data-i18n="settingsShortcutsTitle">Altre scorciatoie (dentro al popup)</span>
         <ul class="shortcut-list">
-          <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> sposta la selezione nella lista</li>
-          <li><kbd>Invio</kbd> copia la voce selezionata e chiude il popup</li>
-          <li><kbd>Ctrl</kbd>+<kbd>1</kbd>…<kbd>9</kbd> copia all'istante una delle prime 9 voci</li>
-          <li><kbd>Esc</kbd> chiude il popup</li>
-          <li>tasto destro su una voce apre, mostra nella cartella, aggiunge ai preferiti o elimina</li>
+          <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <span data-i18n="shortcutNav"></span></li>
+          <li><kbd>Invio</kbd> <span data-i18n="shortcutEnter"></span></li>
+          <li><kbd>Ctrl</kbd>+<kbd>1</kbd>…<kbd>9</kbd> <span data-i18n="shortcutQuickSelect"></span></li>
+          <li><kbd>Esc</kbd> <span data-i18n="shortcutEsc"></span></li>
+          <li data-i18n="shortcutContextMenu"></li>
         </ul>
       </div>
 

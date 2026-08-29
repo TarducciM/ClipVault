@@ -11,6 +11,11 @@ const DEFAULT_MAX_HISTORY: i64 = 500;
 const DEFAULT_MAX_FILE_KB: i64 = 5000;
 /// Default for the "hotkey" setting: the global shortcut that opens/closes the popup.
 pub const DEFAULT_HOTKEY: &str = "Ctrl+Shift+V";
+/// Default for the "max_age_days" setting: unpinned entries older than this are pruned.
+/// 0 means disabled (age-based pruning off, only the count-based cap applies).
+const DEFAULT_MAX_AGE_DAYS: i64 = 0;
+/// Default for the "language" setting.
+const DEFAULT_LANGUAGE: &str = "it";
 
 const SCHEMA: &str = "
     CREATE TABLE IF NOT EXISTS entries (
@@ -91,6 +96,7 @@ pub fn insert(conn: &Connection, entry: &NewEntry, created_at: i64) -> rusqlite:
     )?;
     let id = conn.last_insert_rowid();
     prune(conn, max_history(conn))?;
+    prune_by_age(conn, max_age_days(conn), created_at)?;
     Ok(id)
 }
 
@@ -100,6 +106,20 @@ fn prune(conn: &Connection, max_unpinned: i64) -> rusqlite::Result<()> {
             SELECT id FROM entries WHERE pinned = 0 ORDER BY id DESC LIMIT ?1
         )",
         params![max_unpinned],
+    )?;
+    Ok(())
+}
+
+/// Deletes unpinned entries older than `max_age_days`, measured relative to `now_millis`.
+/// A `max_age_days` of 0 disables age-based pruning entirely.
+fn prune_by_age(conn: &Connection, max_age_days: i64, now_millis: i64) -> rusqlite::Result<()> {
+    if max_age_days <= 0 {
+        return Ok(());
+    }
+    let cutoff = now_millis - max_age_days * 24 * 60 * 60 * 1000;
+    conn.execute(
+        "DELETE FROM entries WHERE pinned = 0 AND created_at < ?1",
+        params![cutoff],
     )?;
     Ok(())
 }
@@ -123,6 +143,14 @@ pub fn max_file_kb(conn: &Connection) -> i64 {
 
 pub fn hotkey(conn: &Connection) -> String {
     setting_str(conn, "hotkey", DEFAULT_HOTKEY)
+}
+
+pub fn max_age_days(conn: &Connection) -> i64 {
+    setting_i64(conn, "max_age_days", DEFAULT_MAX_AGE_DAYS)
+}
+
+pub fn language(conn: &Connection) -> String {
+    setting_str(conn, "language", DEFAULT_LANGUAGE)
 }
 
 /// Whether the first-run onboarding guide has already been shown and dismissed.
@@ -191,6 +219,49 @@ fn escape_like(query: &str) -> String {
     }
     escaped.push('%');
     escaped
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Stats {
+    pub total: i64,
+    pub text_count: i64,
+    pub image_count: i64,
+    pub files_count: i64,
+    pub pinned_count: i64,
+    pub oldest_created_at: Option<i64>,
+    pub newest_created_at: Option<i64>,
+    pub db_size_bytes: i64,
+}
+
+pub fn stats(conn: &Connection, db_size_bytes: i64) -> rusqlite::Result<Stats> {
+    let total = conn.query_row("SELECT COUNT(*) FROM entries", [], |row| row.get(0))?;
+    let count_of = |kind: &str| -> rusqlite::Result<i64> {
+        conn.query_row(
+            "SELECT COUNT(*) FROM entries WHERE kind = ?1",
+            params![kind],
+            |row| row.get(0),
+        )
+    };
+    let pinned_count =
+        conn.query_row("SELECT COUNT(*) FROM entries WHERE pinned = 1", [], |row| {
+            row.get(0)
+        })?;
+    let oldest_created_at: Option<i64> =
+        conn.query_row("SELECT MIN(created_at) FROM entries", [], |row| row.get(0))?;
+    let newest_created_at: Option<i64> =
+        conn.query_row("SELECT MAX(created_at) FROM entries", [], |row| row.get(0))?;
+
+    Ok(Stats {
+        total,
+        text_count: count_of("text")?,
+        image_count: count_of("image")?,
+        files_count: count_of("files")?,
+        pinned_count,
+        oldest_created_at,
+        newest_created_at,
+        db_size_bytes,
+    })
 }
 
 pub struct FullEntry {
@@ -430,5 +501,88 @@ mod tests {
         assert!(!onboarding_seen(&conn));
         mark_onboarding_seen(&conn).unwrap();
         assert!(onboarding_seen(&conn));
+    }
+
+    #[test]
+    fn language_falls_back_to_default_when_unset() {
+        let conn = open_in_memory();
+        assert_eq!(language(&conn), DEFAULT_LANGUAGE);
+    }
+
+    #[test]
+    fn language_reflects_override() {
+        let conn = open_in_memory();
+        set_setting(&conn, "language", "en").unwrap();
+        assert_eq!(language(&conn), "en");
+    }
+
+    #[test]
+    fn prune_by_age_disabled_by_default_keeps_old_entries() {
+        let conn = open_in_memory();
+        let one_year_ms = 365 * 24 * 60 * 60 * 1000;
+        insert(&conn, &text_entry("old"), 1_000_000).unwrap();
+        insert(&conn, &text_entry("now"), 1_000_000 + one_year_ms).unwrap();
+
+        let entries = list(&conn, None).unwrap();
+        assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    fn prune_by_age_removes_unpinned_entries_past_the_cutoff() {
+        let conn = open_in_memory();
+        set_setting(&conn, "max_age_days", "7").unwrap();
+        let day_ms: i64 = 24 * 60 * 60 * 1000;
+        let now = 100 * day_ms;
+
+        insert(&conn, &text_entry("very old"), now - 10 * day_ms).unwrap();
+        insert(&conn, &text_entry("recent"), now).unwrap();
+
+        let entries = list(&conn, None).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].preview, "recent");
+    }
+
+    #[test]
+    fn prune_by_age_never_removes_pinned_entries() {
+        let conn = open_in_memory();
+        set_setting(&conn, "max_age_days", "7").unwrap();
+        let day_ms: i64 = 24 * 60 * 60 * 1000;
+        let now = 100 * day_ms;
+
+        let old_id = insert(&conn, &text_entry("very old but pinned"), now - 10 * day_ms).unwrap();
+        set_pinned(&conn, old_id, true).unwrap();
+
+        // Trigger prune_by_age again via another insert.
+        insert(&conn, &text_entry("recent"), now).unwrap();
+
+        let entries = list(&conn, None).unwrap();
+        assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    fn stats_reports_counts_by_kind_and_pinned() {
+        let conn = open_in_memory();
+        let id1 = insert(&conn, &text_entry("a"), 1).unwrap();
+        insert(&conn, &text_entry("b"), 2).unwrap();
+        set_pinned(&conn, id1, true).unwrap();
+
+        let stats = stats(&conn, 4096).unwrap();
+        assert_eq!(stats.total, 2);
+        assert_eq!(stats.text_count, 2);
+        assert_eq!(stats.image_count, 0);
+        assert_eq!(stats.files_count, 0);
+        assert_eq!(stats.pinned_count, 1);
+        assert_eq!(stats.oldest_created_at, Some(1));
+        assert_eq!(stats.newest_created_at, Some(2));
+        assert_eq!(stats.db_size_bytes, 4096);
+    }
+
+    #[test]
+    fn stats_on_empty_db_has_no_oldest_or_newest() {
+        let conn = open_in_memory();
+        let stats = stats(&conn, 0).unwrap();
+        assert_eq!(stats.total, 0);
+        assert_eq!(stats.oldest_created_at, None);
+        assert_eq!(stats.newest_created_at, None);
     }
 }

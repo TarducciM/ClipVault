@@ -111,6 +111,14 @@ pub fn reveal_entry(app: AppHandle, db: State<'_, DbState>, id: i64) -> Result<(
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ZipEntry {
+    pub name: String,
+    pub size_bytes: u64,
+    pub is_dir: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FilePreview {
     pub name: String,
     pub path: String,
@@ -120,6 +128,7 @@ pub struct FilePreview {
     pub modified: Option<i64>,
     pub sha1: Option<String>,
     pub crc32: Option<String>,
+    pub zip_entries: Option<Vec<ZipEntry>>,
 }
 
 #[derive(Serialize)]
@@ -191,6 +200,7 @@ fn preview_file_meta(path: &str, max_file_kb: i64) -> FilePreview {
         modified: None,
         sha1: None,
         crc32: None,
+        zip_entries: read_zip_entries(path),
     };
 
     let Ok(mut file) = std::fs::File::open(path) else {
@@ -248,6 +258,31 @@ fn preview_file_meta(path: &str, max_file_kb: i64) -> FilePreview {
     }
 }
 
+const MAX_ZIP_ENTRIES_LISTED: usize = 200;
+
+/// Lists the contents of a `.zip` file without extracting it. Returns `None` for
+/// non-zip files or if the archive can't be read (corrupt, unsupported, etc).
+fn read_zip_entries(path: &str) -> Option<Vec<ZipEntry>> {
+    if !path.to_lowercase().ends_with(".zip") {
+        return None;
+    }
+
+    let file = std::fs::File::open(path).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    let count = archive.len().min(MAX_ZIP_ENTRIES_LISTED);
+
+    let mut entries = Vec::with_capacity(count);
+    for i in 0..count {
+        let entry = archive.by_index(i).ok()?;
+        entries.push(ZipEntry {
+            name: entry.name().to_string(),
+            size_bytes: entry.size(),
+            is_dir: entry.is_dir(),
+        });
+    }
+    Some(entries)
+}
+
 fn full_entry(db: &State<'_, DbState>, id: i64) -> Result<db::FullEntry, String> {
     let conn = db.lock().unwrap();
     db::get_full(&conn, id)
@@ -265,8 +300,10 @@ fn file_list_paths(entry: &db::FullEntry) -> Result<Vec<String>, String> {
 pub struct Settings {
     pub max_history: i64,
     pub max_file_kb: i64,
+    pub max_age_days: i64,
     pub autostart: bool,
     pub hotkey: String,
+    pub language: String,
     pub version: String,
 }
 
@@ -277,8 +314,10 @@ pub fn get_settings(app: AppHandle, db: State<'_, DbState>) -> Result<Settings, 
     Ok(Settings {
         max_history: db::max_history(&conn),
         max_file_kb: db::max_file_kb(&conn),
+        max_age_days: db::max_age_days(&conn),
         autostart,
         hotkey: db::hotkey(&conn),
+        language: db::language(&conn),
         version: app.package_info().version.to_string(),
     })
 }
@@ -323,12 +362,15 @@ pub fn mark_onboarding_seen(db: State<'_, DbState>) -> Result<(), String> {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn set_settings(
     app: AppHandle,
     db: State<'_, DbState>,
     max_history: i64,
     max_file_kb: i64,
+    max_age_days: i64,
     autostart: bool,
+    language: String,
 ) -> Result<(), String> {
     {
         let conn = db.lock().unwrap();
@@ -336,6 +378,9 @@ pub fn set_settings(
             .map_err(|err| err.to_string())?;
         db::set_setting(&conn, "max_file_kb", &max_file_kb.max(0).to_string())
             .map_err(|err| err.to_string())?;
+        db::set_setting(&conn, "max_age_days", &max_age_days.max(0).to_string())
+            .map_err(|err| err.to_string())?;
+        db::set_setting(&conn, "language", &language).map_err(|err| err.to_string())?;
     }
 
     let autolaunch = app.autolaunch();
@@ -345,6 +390,20 @@ pub fn set_settings(
         autolaunch.disable()
     };
     result.map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+pub fn get_stats(app: AppHandle, db: State<'_, DbState>) -> Result<db::Stats, String> {
+    let conn = db.lock().unwrap();
+    let db_path = app
+        .path()
+        .app_data_dir()
+        .map_err(|err| err.to_string())?
+        .join("clipvault.db");
+    let db_size_bytes = std::fs::metadata(&db_path)
+        .map(|m| m.len() as i64)
+        .unwrap_or(0);
+    db::stats(&conn, db_size_bytes).map_err(|err| err.to_string())
 }
 
 #[tauri::command]
