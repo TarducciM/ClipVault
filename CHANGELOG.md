@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-29 — README aggiornato, nota installer vs portable nelle release
+
+- `README.md` era rimasto fermo allo scaffold iniziale ("Early scaffold. Not yet functional") nonostante l'app avesse ormai quasi tutte le funzionalità attuali. Riscritto bilingue IT/EN (stesso schema di [MD-Viewer](https://github.com/TarducciM/MD-Viewer)), con elenco funzionalità reale e sezione di download/installazione.
+- Aggiunta a `release.yml` una nota bilingue nella descrizione di ogni release che consiglia l'installer rispetto alla versione portable: quest'ultima va bene per una prova veloce, ma se il file viene spostato o eliminato l'avvio automatico con Windows (se attivato) smette di funzionare silenziosamente, perché punta al percorso del file al momento dell'attivazione. Aggiunta anche a mano alle release già pubblicate (v0.1.0, v0.2.0).
+- Ripulita una release "v0.2.0" duplicata e incompleta creata per errore: spostare il tag `v0.2.0` durante la riscrittura dello storico (vedi sotto) ha rifatto scattare la pipeline di release, generando una seconda bozza con solo 2 dei 3 installer.
+
 ## 2026-08-29 — Prima release vera: v0.2.0
 
 - Il tag `v0.1.0` esisteva già ma puntava a un commit vecchissimo, da prima che quasi tutte le funzionalità attuali esistessero (impostazioni, anteprima, preferiti, statistiche, lingua, vista estesa, tutti i bug fix di oggi). Versione alzata a **0.2.0** (`Cargo.toml`, `tauri.conf.json`, `package.json`) e taggata per riflettere lo stato reale dell'app.

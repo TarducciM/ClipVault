@@ -68,6 +68,10 @@ jobs:
           | [ClipVault_${version}_x64-setup.exe]($base/ClipVault_${version}_x64-setup.exe) | Installer (NSIS) |
           | [ClipVault_${version}_x64_en-US.msi]($base/ClipVault_${version}_x64_en-US.msi) | Installer (MSI) |
           | [ClipVault_${version}_x64-portable.exe]($base/ClipVault_${version}_x64-portable.exe) | Portable, no install |
+
+          **Recommended: use the installer** (setup.exe or .msi) — it adds a Start Menu shortcut, a clean entry in "Apps & features" for uninstalling, and a stable path for the "launch at Windows startup" setting. The portable .exe works fine for a quick try, but if you later move or delete it, autostart (if enabled) silently stops working, since it points at wherever the file was when you turned it on.
+
+          **Consigliato: usa l'installer** (setup.exe o .msi) — aggiunge una voce nel menu Start, una disinstallazione pulita da "App e funzionalità" di Windows, e un percorso stabile per l'impostazione "avvia automaticamente con Windows". La versione portable va benissimo per una prova veloce, ma se in seguito la sposti o la elimini, l'avvio automatico (se attivato) smette di funzionare silenziosamente, perché punta a dove si trovava il file quando l'hai attivato.
           EOF
 
           cat downloads.md notes.md > full-notes.md
