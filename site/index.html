@@ -176,9 +176,18 @@
     margin-bottom: 18px;
     opacity: 0.7;
   }
-  .demo-chrome span { width: 9px; height: 9px; border-radius: 50%; background: var(--text-faint); }
+  .demo-chrome span { width: 9px; height: 9px; border-radius: 50%; background: var(--text-faint); flex-shrink: 0; }
   .demo-pane.popup .demo-chrome span { background: var(--paper-line); }
-  .demo-chrome .label { font-family: var(--mono); font-size: 11.5px; color: var(--text-faint); margin-left: 6px; }
+  .demo-chrome .label {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-faint);
+    margin-left: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
   .demo-pane.popup .demo-chrome .label { color: var(--paper-muted); }
 
   .doc { font-size: 14px; color: var(--text-dim); line-height: 1.85; }
