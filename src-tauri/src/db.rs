@@ -2,8 +2,15 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use std::path::Path;
 
-/// Unpinned entries beyond this count are pruned, oldest first. Pinned entries are never pruned.
-const MAX_UNPINNED_ENTRIES: i64 = 500;
+/// Default for the "max_history" setting: unpinned entries beyond this count are pruned,
+/// oldest first. Pinned entries are never pruned regardless of this setting.
+const DEFAULT_MAX_HISTORY: i64 = 500;
+/// Default for the "max_file_kb" setting: images larger than this are kept as a thumbnail
+/// only (not saved full-size to disk), and files larger than this skip SHA1/CRC32
+/// computation in the preview. 0 means unlimited.
+const DEFAULT_MAX_FILE_KB: i64 = 5000;
+/// Default for the "hotkey" setting: the global shortcut that opens/closes the popup.
+pub const DEFAULT_HOTKEY: &str = "Ctrl+Shift+V";
 
 const SCHEMA: &str = "
     CREATE TABLE IF NOT EXISTS entries (
@@ -20,6 +27,10 @@ const SCHEMA: &str = "
         created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_entries_pinned_id ON entries(pinned, id);
+    CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    );
 ";
 
 pub fn open(app_data_dir: &Path) -> rusqlite::Result<Connection> {
@@ -79,18 +90,66 @@ pub fn insert(conn: &Connection, entry: &NewEntry, created_at: i64) -> rusqlite:
         ],
     )?;
     let id = conn.last_insert_rowid();
-    prune(conn)?;
+    prune(conn, max_history(conn))?;
     Ok(id)
 }
 
-fn prune(conn: &Connection) -> rusqlite::Result<()> {
+fn prune(conn: &Connection, max_unpinned: i64) -> rusqlite::Result<()> {
     conn.execute(
         "DELETE FROM entries WHERE pinned = 0 AND id NOT IN (
             SELECT id FROM entries WHERE pinned = 0 ORDER BY id DESC LIMIT ?1
         )",
-        params![MAX_UNPINNED_ENTRIES],
+        params![max_unpinned],
     )?;
     Ok(())
+}
+
+pub fn set_setting(conn: &Connection, key: &str, value: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![key, value],
+    )?;
+    Ok(())
+}
+
+pub fn max_history(conn: &Connection) -> i64 {
+    setting_i64(conn, "max_history", DEFAULT_MAX_HISTORY)
+}
+
+pub fn max_file_kb(conn: &Connection) -> i64 {
+    setting_i64(conn, "max_file_kb", DEFAULT_MAX_FILE_KB)
+}
+
+pub fn hotkey(conn: &Connection) -> String {
+    setting_str(conn, "hotkey", DEFAULT_HOTKEY)
+}
+
+/// Whether the first-run onboarding guide has already been shown and dismissed.
+pub fn onboarding_seen(conn: &Connection) -> bool {
+    setting_str(conn, "onboarding_seen", "0") == "1"
+}
+
+pub fn mark_onboarding_seen(conn: &Connection) -> rusqlite::Result<()> {
+    set_setting(conn, "onboarding_seen", "1")
+}
+
+fn setting_i64(conn: &Connection, key: &str, default: i64) -> i64 {
+    setting_str(conn, key, &default.to_string())
+        .parse()
+        .unwrap_or(default)
+}
+
+fn setting_str(conn: &Connection, key: &str, default: &str) -> String {
+    conn.query_row(
+        "SELECT value FROM settings WHERE key = ?1",
+        params![key],
+        |row| row.get::<_, String>(0),
+    )
+    .optional()
+    .ok()
+    .flatten()
+    .unwrap_or_else(|| default.to_string())
 }
 
 pub fn list(conn: &Connection, query: Option<&str>) -> rusqlite::Result<Vec<HistoryEntry>> {
@@ -305,20 +364,71 @@ mod tests {
     fn prune_keeps_all_pinned_but_caps_unpinned() {
         let conn = open_in_memory();
 
-        for i in 0..(MAX_UNPINNED_ENTRIES + 5) {
+        for i in 0..(DEFAULT_MAX_HISTORY + 5) {
             insert(&conn, &text_entry(&format!("entry-{i}")), i).unwrap();
         }
 
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM entries", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(count, MAX_UNPINNED_ENTRIES);
+        assert_eq!(count, DEFAULT_MAX_HISTORY);
 
         // The oldest entries should have been pruned, newest kept.
         let entries = list(&conn, None).unwrap();
         assert_eq!(
             entries[0].preview,
-            format!("entry-{}", MAX_UNPINNED_ENTRIES + 4)
+            format!("entry-{}", DEFAULT_MAX_HISTORY + 4)
         );
+    }
+
+    #[test]
+    fn max_history_falls_back_to_default_when_unset() {
+        let conn = open_in_memory();
+        assert_eq!(max_history(&conn), DEFAULT_MAX_HISTORY);
+    }
+
+    #[test]
+    fn set_setting_overrides_the_default_and_is_respected_by_prune() {
+        let conn = open_in_memory();
+        set_setting(&conn, "max_history", "2").unwrap();
+        assert_eq!(max_history(&conn), 2);
+
+        for i in 0..5 {
+            insert(&conn, &text_entry(&format!("entry-{i}")), i).unwrap();
+        }
+
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM entries", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn set_setting_upserts_on_repeated_writes() {
+        let conn = open_in_memory();
+        set_setting(&conn, "max_file_kb", "1000").unwrap();
+        set_setting(&conn, "max_file_kb", "2000").unwrap();
+        assert_eq!(max_file_kb(&conn), 2000);
+    }
+
+    #[test]
+    fn hotkey_falls_back_to_default_when_unset() {
+        let conn = open_in_memory();
+        assert_eq!(hotkey(&conn), DEFAULT_HOTKEY);
+    }
+
+    #[test]
+    fn hotkey_reflects_override() {
+        let conn = open_in_memory();
+        set_setting(&conn, "hotkey", "Ctrl+Alt+V").unwrap();
+        assert_eq!(hotkey(&conn), "Ctrl+Alt+V");
+    }
+
+    #[test]
+    fn onboarding_seen_defaults_to_false_then_sticks_after_marking() {
+        let conn = open_in_memory();
+        assert!(!onboarding_seen(&conn));
+        mark_onboarding_seen(&conn).unwrap();
+        assert!(onboarding_seen(&conn));
     }
 }

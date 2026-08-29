@@ -12,6 +12,7 @@
     <main class="app">
       <div class="search-bar">
         <input id="search-input" type="text" placeholder="Cerca nella cronologia..." autofocus />
+        <button id="favorites-toggle" type="button" class="icon-toggle-btn" title="Mostra solo i preferiti">☆</button>
       </div>
 
       <ul id="history-list" class="history-list"></ul>
@@ -21,9 +22,40 @@
         Copia qualcosa per iniziare.
       </p>
 
+      <p id="status-line" class="status-line"></p>
+
       <div class="footer-bar">
+        <button id="settings-btn" type="button" class="text-btn icon-btn" title="Impostazioni">⚙</button>
         <button id="clear-history-btn" type="button" class="text-btn">Cancella cronologia</button>
       </div>
     </main>
+
+    <div id="context-menu" class="context-menu"></div>
+
+    <div id="onboarding" class="onboarding">
+      <div class="onboarding-box">
+        <h2>Benvenuto in ClipVault</h2>
+        <ul>
+          <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> apre/chiude questo popup da qualsiasi punto di Windows (personalizzabile nelle Impostazioni)</li>
+          <li>Clicca una voce per copiarla e incollarla subito dopo</li>
+          <li>Doppio click su una voce per un'anteprima grande (testo intero, immagine, o dettagli file)</li>
+          <li>Tasto destro su una voce per aprirla, mostrarla nella cartella, metterla nei preferiti o eliminarla</li>
+          <li>La stella ☆ sulla voce la aggiunge ai preferiti, sempre in cima alla lista</li>
+          <li>La stella ☆ accanto alla ricerca mostra solo i preferiti</li>
+          <li>⚙ in basso apre le Impostazioni</li>
+        </ul>
+        <button id="onboarding-dismiss" type="button">Ho capito</button>
+      </div>
+    </div>
+
+    <div id="preview-overlay" class="onboarding">
+      <div class="onboarding-box preview-box">
+        <div class="preview-header">
+          <span id="preview-title"></span>
+          <button id="preview-close" type="button" class="text-btn icon-btn" title="Chiudi">×</button>
+        </div>
+        <div id="preview-content" class="preview-content"></div>
+      </div>
+    </div>
   </body>
 </html>

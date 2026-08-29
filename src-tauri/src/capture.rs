@@ -34,7 +34,12 @@ pub fn spawn(app: AppHandle, conn: Arc<Mutex<Connection>>, images_dir: PathBuf) 
                 }
             }
 
-            let Some(entry) = read_clipboard(&images_dir) else {
+            let max_file_kb = {
+                let db = conn.lock().unwrap();
+                db::max_file_kb(&db)
+            };
+
+            let Some(entry) = read_clipboard(&images_dir, max_file_kb) else {
                 continue;
             };
 
@@ -69,7 +74,7 @@ fn hash_bytes(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
-fn read_clipboard(images_dir: &Path) -> Option<NewEntry> {
+fn read_clipboard(images_dir: &Path, max_file_kb: i64) -> Option<NewEntry> {
     if let Ok(files) = get_clipboard::<Vec<PathBuf>, _>(formats::FileList) {
         if !files.is_empty() {
             return Some(build_files_entry(files));
@@ -78,7 +83,7 @@ fn read_clipboard(images_dir: &Path) -> Option<NewEntry> {
 
     if let Ok(bmp_bytes) = get_clipboard::<Vec<u8>, _>(formats::Bitmap) {
         if !bmp_bytes.is_empty() {
-            if let Some(entry) = build_image_entry(&bmp_bytes, images_dir) {
+            if let Some(entry) = build_image_entry(&bmp_bytes, images_dir, max_file_kb) {
                 return Some(entry);
             }
         }
@@ -142,15 +147,22 @@ fn build_files_entry(files: Vec<PathBuf>) -> NewEntry {
     }
 }
 
-fn build_image_entry(bmp_bytes: &[u8], images_dir: &Path) -> Option<NewEntry> {
+fn build_image_entry(bmp_bytes: &[u8], images_dir: &Path, max_file_kb: i64) -> Option<NewEntry> {
     let img = image::load_from_memory_with_format(bmp_bytes, ImageFormat::Bmp).ok()?;
     let hash = hash_bytes(bmp_bytes);
 
-    let file_name = format!("{hash}.png");
-    let path = images_dir.join(&file_name);
-    if !path.exists() {
-        img.save_with_format(&path, ImageFormat::Png).ok()?;
-    }
+    let size_kb = (bmp_bytes.len() as i64) / 1024;
+    let too_big = max_file_kb > 0 && size_kb > max_file_kb;
+
+    let image_path = if too_big {
+        None
+    } else {
+        let path = images_dir.join(format!("{hash}.png"));
+        if !path.exists() {
+            img.save_with_format(&path, ImageFormat::Png).ok()?;
+        }
+        Some(path.to_string_lossy().into_owned())
+    };
 
     let thumbnail = img.thumbnail(THUMBNAIL_MAX, THUMBNAIL_MAX);
     let mut thumbnail_bytes = Vec::new();
@@ -159,14 +171,18 @@ fn build_image_entry(bmp_bytes: &[u8], images_dir: &Path) -> Option<NewEntry> {
         .ok()?;
 
     let (width, height) = (img.width(), img.height());
-    let preview = format!("Immagine {width}x{height}");
+    let preview = if too_big {
+        format!("Immagine {width}x{height} ({size_kb} KB, non salvata per intero)")
+    } else {
+        format!("Immagine {width}x{height}")
+    };
 
     Some(NewEntry {
         kind: "image",
         preview: preview.clone(),
         search_text: preview,
         content: None,
-        image_path: Some(path.to_string_lossy().into_owned()),
+        image_path,
         file_list: None,
         thumbnail: Some(thumbnail_bytes),
         hash,

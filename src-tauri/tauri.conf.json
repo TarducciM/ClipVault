@@ -17,6 +17,18 @@
         "visible": false,
         "skipTaskbar": true,
         "center": true
+      },
+      {
+        "label": "settings",
+        "url": "settings.html",
+        "title": "Impostazioni ClipVault",
+        "width": 420,
+        "height": 640,
+        "minWidth": 360,
+        "minHeight": 420,
+        "visible": false,
+        "resizable": true,
+        "center": true
       }
     ],
     "security": {

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-29 — Menu contestuale, Impostazioni, anteprima, preferiti
+
+- Rimosso il menu tasto destro nativo del browser (WebView2/Chromium) su tutto il popup; sostituito con un menu contestuale proprio (Copia, Apri, Mostra nella cartella, Aggiungi/Rimuovi preferiti, Elimina — le voci "Apri"/"Mostra nella cartella" solo per immagini e file).
+- Aggiunta la finestra **Impostazioni**: hotkey globale personalizzabile (menu a tendina con 5 combinazioni sicure, persistita e ri-registrata a caldo senza riavviare l'app), lunghezza massima cronologia, dimensione massima file (vedi sotto), avvio automatico con Windows (`tauri-plugin-autostart`), spiegazione di tutte le altre scorciatoie del popup, numero di versione.
+  - **Bug lungo da scovare**: la finestra Impostazioni, creata dinamicamente a runtime via `WebviewWindowBuilder` dentro un comando Tauri, si apriva ma restava **completamente bianca** (0 nodi DOM reali, confermato via UI Automation + screenshot diretto della finestra, non solo dello schermo). Provate e scartate: capability con `"windows"` limitato a `"main"` (l'ho ampliato, non ha risolto), puntare a `index.html` invece di `settings.html` (stesso risultato, quindi non era specifico del file). La causa non è stata isolata con certezza, ma la soluzione che ha risolto per davvero è stata **dichiarare la finestra staticamente in `tauri.conf.json`** (esattamente come la finestra principale, che ha sempre funzionato), invece di crearla da codice Rust — verificato con automazione reale (apertura popup e click sull'icona ingranaggio simulati, contenuto della finestra letto via accessibilità Windows + screenshot pixel-per-pixel).
+- Aggiunta **anteprima doppio click**: testo intero in un riquadro scrollabile, immagine ingrandita, e per i file nome/dimensione/data modifica/SHA1/CRC32 (calcolo saltato sopra la soglia "dimensione massima file", per non bloccarsi su uno zip enorme).
+- Rinominata l'impostazione "dimensione massima immagine" in **"dimensione massima file"**: si applica sia al salvataggio delle immagini per intero sia al calcolo hash nell'anteprima file.
+- Aggiunta **sezione Preferiti**: intestazione "★ Preferiti" ora appare appena c'è almeno una voce pinnata (prima serviva un mix di pinnate e non); nuovo pulsante ☆ accanto alla ricerca per filtrare la lista ai soli preferiti.
+- Aggiunta scorciatoia **Ctrl+1..9** per copiare all'istante una delle prime 9 voci senza mouse né frecce.
+- Aggiunta **guida introduttiva** mostrata alla primissima apertura del popup (spiega hotkey, click/doppio click/tasto destro, stella, impostazioni), con flag persistito per non ripresentarsi.
+- Verifica end-to-end fatta con automazione Windows reale (UI Automation + tasti/click simulati + screenshot diretti delle finestre via `PrintWindow`), non solo compilazione: popup principale, finestra Impostazioni, e apertura/chiusura confermate visivamente funzionanti.
+
 ## 2026-08-29
 
 - Rust era già installato sulla macchina (rustup, toolchain stable-x86_64-pc-windows-msvc) insieme ai Visual Studio Build Tools con workload C++ — solo non nel PATH della sessione. `cargo check`, `cargo fmt --check` e `cargo clippy` passano puliti sul codice Rust dello scaffold.

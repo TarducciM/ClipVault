@@ -8,7 +8,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager, WindowEvent,
 };
-use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutEvent, ShortcutState};
 
 fn toggle_main_window(app: &tauri::AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
@@ -23,10 +23,14 @@ fn toggle_main_window(app: &tauri::AppHandle) {
     }
 }
 
+pub(crate) fn shortcut_handler(app: &tauri::AppHandle, _shortcut: &Shortcut, event: ShortcutEvent) {
+    if event.state() == ShortcutState::Pressed {
+        toggle_main_window(app);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let toggle_shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyV);
-
     let mut builder = tauri::Builder::default();
 
     #[cfg(desktop)]
@@ -38,23 +42,26 @@ pub fn run() {
 
     builder
         .plugin(tauri_plugin_opener::init())
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcut(toggle_shortcut)
-                .expect("invalid global shortcut definition")
-                .with_handler(|app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
-                        toggle_main_window(app);
-                    }
-                })
-                .build(),
-        )
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![]),
+        ))
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::get_history,
             commands::toggle_pin,
             commands::delete_entry,
             commands::clear_history,
             commands::copy_entry_to_clipboard,
+            commands::open_entry,
+            commands::reveal_entry,
+            commands::get_entry_preview,
+            commands::get_settings,
+            commands::set_settings,
+            commands::set_hotkey,
+            commands::show_settings_window,
+            commands::should_show_onboarding,
+            commands::mark_onboarding_seen,
         ])
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir()?;
@@ -65,11 +72,22 @@ pub fn run() {
             let conn = Arc::new(Mutex::new(conn));
             app.manage(conn.clone());
 
+            let hotkey = {
+                let conn = conn.lock().unwrap();
+                db::hotkey(&conn)
+            };
+            if let Err(err) = app.global_shortcut().on_shortcut(hotkey.as_str(), shortcut_handler) {
+                eprintln!("clipvault: failed to register hotkey '{hotkey}': {err}, falling back to default");
+                let _ = app.global_shortcut().on_shortcut(db::DEFAULT_HOTKEY, shortcut_handler);
+            }
+
             capture::spawn(app.handle().clone(), conn, images_dir);
 
             let show_item = MenuItem::with_id(app, "show", "Mostra ClipVault", true, None::<&str>)?;
+            let settings_item =
+                MenuItem::with_id(app, "settings", "Impostazioni", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Esci", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+            let menu = Menu::with_items(app, &[&show_item, &settings_item, &quit_item])?;
 
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
@@ -77,6 +95,9 @@ pub fn run() {
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => toggle_main_window(app),
+                    "settings" => {
+                        let _ = commands::show_settings_window(app.clone());
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -96,8 +117,12 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                window.hide().ok();
-                api.prevent_close();
+                // Only the popup hides-on-close (so it stays warm in the tray). Other windows
+                // (e.g. Settings) close for real, so the close button always works as expected.
+                if window.label() == "main" {
+                    window.hide().ok();
+                    api.prevent_close();
+                }
             }
         })
         .run(tauri::generate_context!())
