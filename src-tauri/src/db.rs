@@ -5,24 +5,26 @@ use std::path::Path;
 /// Unpinned entries beyond this count are pruned, oldest first. Pinned entries are never pruned.
 const MAX_UNPINNED_ENTRIES: i64 = 500;
 
+const SCHEMA: &str = "
+    CREATE TABLE IF NOT EXISTS entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        kind TEXT NOT NULL,
+        preview TEXT NOT NULL,
+        search_text TEXT NOT NULL,
+        content TEXT,
+        image_path TEXT,
+        file_list TEXT,
+        thumbnail BLOB,
+        hash TEXT NOT NULL,
+        pinned INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_entries_pinned_id ON entries(pinned, id);
+";
+
 pub fn open(app_data_dir: &Path) -> rusqlite::Result<Connection> {
     let conn = Connection::open(app_data_dir.join("clipvault.db"))?;
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS entries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            kind TEXT NOT NULL,
-            preview TEXT NOT NULL,
-            search_text TEXT NOT NULL,
-            content TEXT,
-            image_path TEXT,
-            file_list TEXT,
-            thumbnail BLOB,
-            hash TEXT NOT NULL,
-            pinned INTEGER NOT NULL DEFAULT 0,
-            created_at INTEGER NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_entries_pinned_id ON entries(pinned, id);",
-    )?;
+    conn.execute_batch(SCHEMA)?;
     Ok(conn)
 }
 
@@ -171,4 +173,152 @@ pub fn delete(conn: &Connection, id: i64) -> rusqlite::Result<()> {
 pub fn clear_unpinned(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute("DELETE FROM entries WHERE pinned = 0", [])?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn open_in_memory() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(SCHEMA).unwrap();
+        conn
+    }
+
+    fn text_entry(text: &str) -> NewEntry {
+        NewEntry {
+            kind: "text",
+            preview: text.to_string(),
+            search_text: text.to_string(),
+            content: Some(text.to_string()),
+            image_path: None,
+            file_list: None,
+            thumbnail: None,
+            hash: format!("hash-{text}"),
+        }
+    }
+
+    #[test]
+    fn insert_and_list_returns_newest_first() {
+        let conn = open_in_memory();
+        insert(&conn, &text_entry("first"), 1).unwrap();
+        insert(&conn, &text_entry("second"), 2).unwrap();
+
+        let entries = list(&conn, None).unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].preview, "second");
+        assert_eq!(entries[1].preview, "first");
+    }
+
+    #[test]
+    fn list_search_matches_search_text_case_insensitively() {
+        let conn = open_in_memory();
+        insert(&conn, &text_entry("Hello World"), 1).unwrap();
+        insert(&conn, &text_entry("unrelated"), 2).unwrap();
+
+        let entries = list(&conn, Some("world")).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].preview, "Hello World");
+    }
+
+    #[test]
+    fn list_search_escapes_like_wildcards() {
+        let conn = open_in_memory();
+        insert(&conn, &text_entry("100% done"), 1).unwrap();
+        insert(&conn, &text_entry("100x done"), 2).unwrap();
+
+        // A literal '%' in the query should not act as a wildcard.
+        let entries = list(&conn, Some("100%")).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].preview, "100% done");
+    }
+
+    #[test]
+    fn pinned_entries_sort_before_unpinned_regardless_of_age() {
+        let conn = open_in_memory();
+        let older_id = insert(&conn, &text_entry("older"), 1).unwrap();
+        insert(&conn, &text_entry("newer"), 2).unwrap();
+        set_pinned(&conn, older_id, true).unwrap();
+
+        let entries = list(&conn, None).unwrap();
+        assert_eq!(entries[0].preview, "older");
+        assert!(entries[0].pinned);
+        assert_eq!(entries[1].preview, "newer");
+    }
+
+    #[test]
+    fn delete_removes_only_the_targeted_entry() {
+        let conn = open_in_memory();
+        let keep = insert(&conn, &text_entry("keep"), 1).unwrap();
+        let remove = insert(&conn, &text_entry("remove"), 2).unwrap();
+
+        delete(&conn, remove).unwrap();
+
+        let entries = list(&conn, None).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].id, keep);
+    }
+
+    #[test]
+    fn clear_unpinned_keeps_pinned_entries() {
+        let conn = open_in_memory();
+        let pinned = insert(&conn, &text_entry("pinned"), 1).unwrap();
+        insert(&conn, &text_entry("not pinned"), 2).unwrap();
+        set_pinned(&conn, pinned, true).unwrap();
+
+        clear_unpinned(&conn).unwrap();
+
+        let entries = list(&conn, None).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].id, pinned);
+    }
+
+    #[test]
+    fn get_full_returns_none_for_missing_id() {
+        let conn = open_in_memory();
+        assert!(get_full(&conn, 999).unwrap().is_none());
+    }
+
+    #[test]
+    fn get_full_round_trips_stored_fields() {
+        let conn = open_in_memory();
+        let id = insert(&conn, &text_entry("round trip"), 1).unwrap();
+
+        let full = get_full(&conn, id).unwrap().expect("entry should exist");
+        assert_eq!(full.kind, "text");
+        assert_eq!(full.content.as_deref(), Some("round trip"));
+    }
+
+    #[test]
+    fn last_hash_reflects_most_recent_insert() {
+        let conn = open_in_memory();
+        assert!(last_hash(&conn).is_none());
+
+        insert(&conn, &text_entry("first"), 1).unwrap();
+        assert_eq!(last_hash(&conn).as_deref(), Some("hash-first"));
+
+        insert(&conn, &text_entry("second"), 2).unwrap();
+        assert_eq!(last_hash(&conn).as_deref(), Some("hash-second"));
+    }
+
+    #[test]
+    fn prune_keeps_all_pinned_but_caps_unpinned() {
+        let conn = open_in_memory();
+
+        for i in 0..(MAX_UNPINNED_ENTRIES + 5) {
+            insert(&conn, &text_entry(&format!("entry-{i}")), i).unwrap();
+        }
+
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM entries", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, MAX_UNPINNED_ENTRIES);
+
+        // The oldest entries should have been pruned, newest kept.
+        let entries = list(&conn, None).unwrap();
+        assert_eq!(
+            entries[0].preview,
+            format!("entry-{}", MAX_UNPINNED_ENTRIES + 4)
+        );
+    }
 }
