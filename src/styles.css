@@ -56,16 +56,59 @@ body {
 }
 
 .history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 10px;
   border-radius: 6px;
   cursor: pointer;
+}
+
+.history-item:hover {
+  background-color: rgba(57, 108, 216, 0.12);
+}
+
+.history-thumb {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.history-icon {
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 1.1em;
+}
+
+.history-text {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.history-item:hover {
-  background-color: rgba(57, 108, 216, 0.12);
+.pin-btn {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1em;
+  color: rgba(0, 0, 0, 0.3);
+  padding: 2px 4px;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.pin-btn:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.pin-btn.pinned {
+  color: #d8a13a;
 }
 
 .empty-state {
@@ -94,6 +137,18 @@ body {
 
   .history-item:hover {
     background-color: rgba(57, 108, 216, 0.25);
+  }
+
+  .pin-btn {
+    color: rgba(255, 255, 255, 0.3);
+  }
+
+  .pin-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .pin-btn.pinned {
+    color: #e0b95a;
   }
 
   .empty-state {
