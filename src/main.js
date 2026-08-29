@@ -108,6 +108,12 @@ async function showPreview(entry) {
       pre.textContent = data.text;
       content.appendChild(pre);
     } else if (data.kind === "image") {
+      if (data.imageIsThumbnail) {
+        const note = document.createElement("p");
+        note.className = "preview-note";
+        note.textContent = I18n.t("previewImageThumbnailOnly");
+        content.appendChild(note);
+      }
       const img = document.createElement("img");
       img.className = "preview-image";
       img.src = data.imageDataUrl;

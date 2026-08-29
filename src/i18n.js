@@ -44,6 +44,8 @@
       previewFileNotFound: "non trovato",
       previewFileTooLarge: "file troppo grande",
       previewZipContents: "Contenuto archivio",
+      previewImageThumbnailOnly:
+        "Immagine troppo grande per essere salvata per intero: questa è solo l'anteprima ridotta.",
       previewErrorPrefix: "Errore",
       dayToday: "Oggi",
       dayYesterday: "Ieri",
@@ -118,6 +120,7 @@
       previewFileNotFound: "not found",
       previewFileTooLarge: "file too large",
       previewZipContents: "Archive contents",
+      previewImageThumbnailOnly: "Image was too large to save in full: this is only the small thumbnail.",
       previewErrorPrefix: "Error",
       dayToday: "Today",
       dayYesterday: "Yesterday",

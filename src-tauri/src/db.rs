@@ -269,11 +269,12 @@ pub struct FullEntry {
     pub content: Option<String>,
     pub image_path: Option<String>,
     pub file_list: Option<String>,
+    pub thumbnail: Option<Vec<u8>>,
 }
 
 pub fn get_full(conn: &Connection, id: i64) -> rusqlite::Result<Option<FullEntry>> {
     conn.query_row(
-        "SELECT kind, content, image_path, file_list FROM entries WHERE id = ?1",
+        "SELECT kind, content, image_path, file_list, thumbnail FROM entries WHERE id = ?1",
         params![id],
         |row| {
             Ok(FullEntry {
@@ -281,6 +282,7 @@ pub fn get_full(conn: &Connection, id: i64) -> rusqlite::Result<Option<FullEntry
                 content: row.get(1)?,
                 image_path: row.get(2)?,
                 file_list: row.get(3)?,
+                thumbnail: row.get(4)?,
             })
         },
     )

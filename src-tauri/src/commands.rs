@@ -5,7 +5,7 @@ use serde::Serialize;
 use sha1::{Digest, Sha1};
 use std::io::Read;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 use tauri_plugin_opener::OpenerExt;
@@ -137,6 +137,9 @@ pub struct PreviewData {
     pub kind: String,
     pub text: Option<String>,
     pub image_data_url: Option<String>,
+    /// Set when the preview is a downscaled thumbnail rather than the full-resolution
+    /// image (because it was too large to save in full — see the "max file size" setting).
+    pub image_is_thumbnail: bool,
     pub files: Option<Vec<FilePreview>>,
 }
 
@@ -149,19 +152,30 @@ pub fn get_entry_preview(db: State<'_, DbState>, id: i64) -> Result<PreviewData,
             kind: "text".into(),
             text: entry.content,
             image_data_url: None,
+            image_is_thumbnail: false,
             files: None,
         }),
         "image" => {
-            let path = entry
-                .image_path
-                .ok_or("immagine troppo grande, non salvata per intero")?;
-            let bytes = std::fs::read(&path).map_err(|err| err.to_string())?;
+            // Prefer the full-resolution image; if it wasn't saved (too large per the
+            // "max file size" setting), fall back to the small thumbnail we always keep,
+            // rather than failing the preview outright.
+            let (bytes, image_is_thumbnail) = match &entry.image_path {
+                Some(path) => (std::fs::read(path).map_err(|err| err.to_string())?, false),
+                None => (
+                    entry
+                        .thumbnail
+                        .clone()
+                        .ok_or("nessuna immagine disponibile per l'anteprima")?,
+                    true,
+                ),
+            };
             use base64::Engine;
             let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
             Ok(PreviewData {
                 kind: "image".into(),
                 text: None,
                 image_data_url: Some(format!("data:image/png;base64,{encoded}")),
+                image_is_thumbnail,
                 files: None,
             })
         }
@@ -178,6 +192,7 @@ pub fn get_entry_preview(db: State<'_, DbState>, id: i64) -> Result<PreviewData,
                 kind: "files".into(),
                 text: None,
                 image_data_url: None,
+                image_is_thumbnail: false,
                 files: Some(files),
             })
         }
@@ -412,5 +427,10 @@ pub fn show_settings_window(app: AppHandle) -> Result<(), String> {
         .get_webview_window("settings")
         .ok_or("settings window not found")?;
     window.show().map_err(|err| err.to_string())?;
-    window.set_focus().map_err(|err| err.to_string())
+    window.set_focus().map_err(|err| err.to_string())?;
+    // The settings webview loads once and stays alive in the background (it's declared
+    // statically and just shown/hidden), so fields like the stats need to be re-fetched
+    // every time the window is shown again, not only on its first load.
+    let _ = app.emit("settings-shown", ());
+    Ok(())
 }

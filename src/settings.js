@@ -1,4 +1,5 @@
 const { invoke } = window.__TAURI__.core;
+const { listen } = window.__TAURI__.event;
 
 async function loadStats() {
   try {
@@ -89,5 +90,11 @@ window.addEventListener("DOMContentLoaded", () => {
   I18n.applyStaticTranslations();
   document.addEventListener("contextmenu", (event) => event.preventDefault());
   document.querySelector("#save-btn").addEventListener("click", save);
+  load();
+});
+
+listen("settings-shown", () => {
+  // The window is created once and just shown/hidden afterwards, so fields (especially
+  // the stats) would otherwise keep showing whatever was true the first time it loaded.
   load();
 });
