@@ -485,6 +485,12 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   listen("history-updated", refresh);
+  listen("language-changed", (event) => {
+    // Fires even while the popup is already open, so a language change in Settings is
+    // visible right away instead of only on the next open.
+    I18n.setLang(event.payload);
+    I18n.applyStaticTranslations();
+  });
   listen("popup-shown", () => {
     // Re-apply in case the language changed in Settings since the popup last loaded
     // (a language change there only updates localStorage; each window's static

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-29 — Cambio lingua che falliva silenziosamente ("os error 2")
+
+- **Bug segnalato dall'utente** ("inglese da errore tipo os 2 impossibile trovare il file"): salvare le Impostazioni con la casella "avvia automaticamente" deselezionata provava comunque a **disattivare** l'avvio automatico ad ogni salvataggio — anche quando non era mai stato attivato. Windows risponde con "impossibile trovare il file" quando si prova a rimuovere una chiave di registro che non esiste, e quell'errore interrompeva l'intero salvataggio prima che il cambio lingua venisse applicato. Per questo cambiare lingua "non succedeva niente": il salvataggio falliva silenziosamente un attimo prima di arrivarci. Sistemato: ora si tocca il registro solo se lo stato deve davvero cambiare.
+- **Bug correlato**: anche a salvataggio riuscito, cambiare lingua nelle Impostazioni non si vedeva nel popup principale se questo era già aperto (si vedeva solo la volta successiva che veniva riaperto). Aggiunta una notifica diretta tra le finestre così il popup principale si aggiorna all'istante, anche se è già aperto mentre si salva.
+- Verificato dal vivo, con l'app in esecuzione: selezionata la lingua Inglese nelle Impostazioni, salvato senza errori, testo della finestra Impostazioni cambiato subito, nessuna voce spuria lasciata nel registro di avvio automatico di Windows.
+
 ## 2026-08-29 — Anteprima immagine mancante, statistiche stantie, finestra Impostazioni che si "consumava"
 
 - **Bug segnalato dall'utente ("su immagini non fa vedere una anteprima")**: quando un'immagine copiata supera la soglia "dimensione massima file" delle Impostazioni, l'app la salva solo come thumbnail ridotta (per design) ma `get_full`/`FullEntry` non leggeva mai la colonna `thumbnail` dal database — quindi l'anteprima andava in errore invece di mostrare qualcosa. Sistemato: l'anteprima ora ricade sulla thumbnail quando l'immagine intera non è stata salvata, con un avviso visibile ("Immagine troppo grande per essere salvata per intero: questa è solo l'anteprima ridotta."). Verificato dal vivo con automazione reale (screenshot pixel-per-pixel): copiata un'immagine normale → anteprima corretta senza avviso; abbassata temporaneamente la soglia e ricopiata un'immagine → anteprima con thumbnail + avviso, esattamente come da fix.

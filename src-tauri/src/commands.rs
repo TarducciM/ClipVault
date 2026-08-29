@@ -399,12 +399,19 @@ pub fn set_settings(
     }
 
     let autolaunch = app.autolaunch();
-    let result = if autostart {
-        autolaunch.enable()
-    } else {
-        autolaunch.disable()
-    };
-    result.map_err(|err| err.to_string())
+    // Only touch the registry when the state actually needs to change: calling disable()
+    // when autostart was never enabled fails (Windows returns "file not found" trying to
+    // delete a registry value that isn't there), which was aborting the whole save.
+    let currently_enabled = autolaunch.is_enabled().unwrap_or(false);
+    if autostart != currently_enabled {
+        let result = if autostart {
+            autolaunch.enable()
+        } else {
+            autolaunch.disable()
+        };
+        result.map_err(|err| err.to_string())?;
+    }
+    Ok(())
 }
 
 #[tauri::command]

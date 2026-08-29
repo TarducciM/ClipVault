@@ -1,5 +1,5 @@
 const { invoke } = window.__TAURI__.core;
-const { listen } = window.__TAURI__.event;
+const { listen, emit } = window.__TAURI__.event;
 
 async function loadStats() {
   try {
@@ -74,6 +74,9 @@ async function save() {
     I18n.setLang(language);
     if (languageChanged) {
       I18n.applyStaticTranslations();
+      // Other windows (the main popup) only refresh their text when explicitly shown
+      // again; broadcast so an already-open popup updates immediately too.
+      emit("language-changed", language);
     }
     status.textContent = I18n.t("settingsSaved");
   } catch (err) {
