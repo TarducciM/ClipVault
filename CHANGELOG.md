@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-08-29 — Prima release vera: v0.2.0
+
+- Il tag `v0.1.0` esisteva già ma puntava a un commit vecchissimo, da prima che quasi tutte le funzionalità attuali esistessero (impostazioni, anteprima, preferiti, statistiche, lingua, vista estesa, tutti i bug fix di oggi). Versione alzata a **0.2.0** (`Cargo.toml`, `tauri.conf.json`, `package.json`) e taggata per riflettere lo stato reale dell'app.
+- La pipeline di release ([.github/workflows/release.yml](.github/workflows/release.yml), stessa struttura di [MD-Viewer](https://github.com/TarducciM/MD-Viewer)) builda installer NSIS + MSI più un eseguibile portable, e prepara una release **in bozza** su GitHub con tabella download auto-generata — resta in bozza finché non viene pubblicata a mano.
+
 ## 2026-08-29 — Cambio lingua che falliva silenziosamente ("os error 2")
 
 - **Bug segnalato dall'utente** ("inglese da errore tipo os 2 impossibile trovare il file"): salvare le Impostazioni con la casella "avvia automaticamente" deselezionata provava comunque a **disattivare** l'avvio automatico ad ogni salvataggio — anche quando non era mai stato attivato. Windows risponde con "impossibile trovare il file" quando si prova a rimuovere una chiave di registro che non esiste, e quell'errore interrompeva l'intero salvataggio prima che il cambio lingua venisse applicato. Per questo cambiare lingua "non succedeva niente": il salvataggio falliva silenziosamente un attimo prima di arrivarci. Sistemato: ora si tocca il registro solo se lo stato deve davvero cambiare.
