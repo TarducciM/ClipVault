@@ -52,6 +52,28 @@
     });
   }
 
+  // Ctrl+wheel to zoom the font size in/out — plain wheel is left alone so long text/code
+  // still scrolls normally, unlike the image case where wheel has nothing else to do.
+  function setupTextZoom(pre) {
+    let zoom = 1;
+    let baseFontSize = null;
+
+    pre.addEventListener(
+      "wheel",
+      (event) => {
+        if (!event.ctrlKey) return;
+        event.preventDefault();
+        if (baseFontSize == null) {
+          baseFontSize = parseFloat(getComputedStyle(pre).fontSize);
+        }
+        const factor = event.deltaY < 0 ? 1.15 : 1 / 1.15;
+        zoom = Math.min(4, Math.max(0.5, zoom * factor));
+        pre.style.fontSize = zoom === 1 ? "" : `${baseFontSize * zoom}px`;
+      },
+      { passive: false },
+    );
+  }
+
   function renderCodeBox(container, text, truncated) {
     const title = document.createElement("div");
     title.className = "zip-contents-title";
@@ -62,6 +84,7 @@
     pre.className = "preview-text code-preview";
     pre.textContent = text;
     container.appendChild(pre);
+    setupTextZoom(pre);
   }
 
   // Renders a PreviewData object (from the `get_entry_preview` command) into `container`,
@@ -73,6 +96,7 @@
       pre.className = "preview-text";
       pre.textContent = data.text;
       container.appendChild(pre);
+      setupTextZoom(pre);
     } else if (data.kind === "image") {
       if (data.imageIsThumbnail) {
         const note = document.createElement("p");
@@ -129,7 +153,9 @@
           const zipList = document.createElement("ul");
           for (const zipEntry of file.zipEntries) {
             const li = document.createElement("li");
-            li.textContent = zipEntry.isDir ? `${zipEntry.name}` : `${zipEntry.name} (${formatBytes(zipEntry.sizeBytes)})`;
+            li.textContent = zipEntry.isDir
+              ? `${zipEntry.name}`
+              : `${zipEntry.name} (${formatBytes(zipEntry.sizeBytes)}, CRC32 ${zipEntry.crc32})`;
             zipList.appendChild(li);
           }
           zipCell.appendChild(zipList);

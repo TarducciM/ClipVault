@@ -115,6 +115,7 @@ pub struct ZipEntry {
     pub name: String,
     pub size_bytes: u64,
     pub is_dir: bool,
+    pub crc32: String,
 }
 
 #[derive(Serialize)]
@@ -348,13 +349,21 @@ fn read_text_preview(path: &str, kind: TextPreviewKind) -> Option<(String, bool)
 
 const MAX_ZIP_ENTRIES_LISTED: usize = 200;
 
-/// Lists the contents of a `.zip` file without extracting it. Returns `None` for
-/// non-zip files or if the archive can't be read (corrupt, unsupported, etc).
+/// Lists the contents of a `.zip` or `.7z` archive (name, size, CRC32) without extracting
+/// it. Returns `None` for other file types, or if the archive can't be read (corrupt,
+/// unsupported, password-protected header, etc).
 fn read_zip_entries(path: &str) -> Option<Vec<ZipEntry>> {
-    if !path.to_lowercase().ends_with(".zip") {
-        return None;
+    let lower = path.to_lowercase();
+    if lower.ends_with(".zip") {
+        read_zip_archive(path)
+    } else if lower.ends_with(".7z") {
+        read_7z_archive(path)
+    } else {
+        None
     }
+}
 
+fn read_zip_archive(path: &str) -> Option<Vec<ZipEntry>> {
     let file = std::fs::File::open(path).ok()?;
     let mut archive = zip::ZipArchive::new(file).ok()?;
     let count = archive.len().min(MAX_ZIP_ENTRIES_LISTED);
@@ -366,8 +375,29 @@ fn read_zip_entries(path: &str) -> Option<Vec<ZipEntry>> {
             name: entry.name().to_string(),
             size_bytes: entry.size(),
             is_dir: entry.is_dir(),
+            crc32: format!("{:08x}", entry.crc32()),
         });
     }
+    Some(entries)
+}
+
+fn read_7z_archive(path: &str) -> Option<Vec<ZipEntry>> {
+    let archive = sevenz_rust2::Archive::open(path).ok()?;
+    let entries = archive
+        .files
+        .iter()
+        .take(MAX_ZIP_ENTRIES_LISTED)
+        .map(|entry| ZipEntry {
+            name: entry.name.clone(),
+            size_bytes: entry.size,
+            is_dir: entry.is_directory,
+            crc32: if entry.has_crc {
+                format!("{:08x}", entry.crc as u32)
+            } else {
+                "-".to_string()
+            },
+        })
+        .collect();
     Some(entries)
 }
 

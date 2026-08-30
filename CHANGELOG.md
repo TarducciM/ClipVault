@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-08-30 — CRC32 per file negli archivi, supporto 7z, zoom su testo/PDF
+
+- L'anteprima di uno `.zip` mostrava nome e dimensione di ogni file contenuto ma non il CRC32 — aggiunto (il crate `zip` lo espone già per ogni voce, nessun calcolo aggiuntivo).
+- **Aggiunto supporto `.7z`** (via `sevenz-rust2`): stessa anteprima contenuto (nome, dimensione, CRC32) già disponibile per `.zip`, senza estrarre l'archivio. Verificato dal vivo con un archivio 7z reale (stessi file di test dello zip, CRC confrontati e identici tra i due formati).
+- **`.rar` non incluso**: a differenza di zip/7z non esiste un lettore RAR "pulito" in Rust puro — le opzioni note richiedono la libreria nativa UnRAR (non inclusa in Windows, l'utente dovrebbe averla installata a parte) o binding a codice C++ di terze parti. Prima di aggiungerlo chiedo conferma esplicita, visto il costo (dipendenza esterna, peggiora l'affidabilità "funziona sempre" delle altre due).
+- **Zoom con Ctrl+rotellina** sulle anteprime di testo e codice (inclusi i PDF, che mostrano solo testo estratto): la rotellina normale continua a scorrere il contenuto come prima, Ctrl+rotellina ingrandisce/rimpicciolisce la dimensione del testo. Verificato dal vivo su un PDF di test.
+
 ## 2026-08-30 — Anteprima grande in una finestra propria, contenuto per testo/codice/PDF, zoom immagini
 
 - Aggiunto un pulsante "⛶" nell'header dell'anteprima (doppio click su una voce) che apre una **finestra dedicata più grande** (900×680, ridimensionabile) con lo stesso contenuto — utile per vedere un'immagine più grande o il contenuto di uno zip senza essere schiacciati nella larghezza ridotta del popup. Stessa finestra riusata per anteprime successive (nascosta non distrutta alla chiusura, come le altre finestre dell'app), notificata via evento `viewer-entry`.
