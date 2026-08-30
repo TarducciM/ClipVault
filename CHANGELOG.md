@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-08-30 — Release v0.3.0
+
+- Versione alzata a **0.3.0** e taggata: da v0.2.0 sono state aggiunte la finestra di anteprima grande dedicata, l'anteprima del contenuto per file di testo/codice/PDF, lo zoom su immagini e testo, e il supporto ad archivi `.7z`/`.rar` con CRC32 per file (oltre allo `.zip` già supportato).
+
 ## 2026-08-30 — Aggiunto anche il supporto .rar
 
 - Nella voce precedente avevo lasciato fuori `.rar` per via della dipendenza esterna che sembrava richiedere. Controllando meglio il crate [`unrar`](https://crates.io/crates/unrar): **vendorizza e compila staticamente il sorgente ufficiale UnRAR** dentro l'eseguibile stesso — nessuna DLL esterna, nessuna installazione richiesta all'utente, stessa affidabilità di zip/7z. Aggiunto.
