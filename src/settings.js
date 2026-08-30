@@ -89,10 +89,39 @@ async function save() {
   }, 3000);
 }
 
+async function exportHistory() {
+  const status = document.querySelector("#backup-status");
+  try {
+    const result = await invoke("export_history");
+    status.textContent = I18n.t("settingsExportSuccess", { entries: result.entries, snippets: result.snippets });
+  } catch (err) {
+    status.textContent = `${I18n.t("settingsErrorPrefix")}: ${err}`;
+  }
+  setTimeout(() => {
+    status.textContent = "";
+  }, 4000);
+}
+
+async function importHistory() {
+  const status = document.querySelector("#backup-status");
+  try {
+    const result = await invoke("import_history");
+    status.textContent = I18n.t("settingsImportSuccess", { entries: result.entries, snippets: result.snippets });
+    await loadStats();
+  } catch (err) {
+    status.textContent = `${I18n.t("settingsErrorPrefix")}: ${err}`;
+  }
+  setTimeout(() => {
+    status.textContent = "";
+  }, 4000);
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   I18n.applyStaticTranslations();
   document.addEventListener("contextmenu", (event) => event.preventDefault());
   document.querySelector("#save-btn").addEventListener("click", save);
+  document.querySelector("#export-btn").addEventListener("click", exportHistory);
+  document.querySelector("#import-btn").addEventListener("click", importHistory);
   load();
 });
 

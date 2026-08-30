@@ -1,12 +1,13 @@
 use crate::db::{self, HistoryEntry};
 use clipboard_win::{formats, set_clipboard, Clipboard, Setter};
 use rusqlite::Connection;
-use serde::Serialize;
-use sha1::{Digest, Sha1};
+use serde::{Deserialize, Serialize};
+use sha1::{Digest as _, Sha1};
 use std::io::Read;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_autostart::ManagerExt;
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 use tauri_plugin_opener::OpenerExt;
 
@@ -37,6 +38,287 @@ pub fn delete_entry(db: State<'_, DbState>, id: i64) -> Result<(), String> {
 pub fn clear_history(db: State<'_, DbState>) -> Result<(), String> {
     let conn = db.lock().unwrap();
     db::clear_unpinned(&conn).map_err(|err| err.to_string())
+}
+
+fn now_millis() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
+}
+
+#[tauri::command]
+pub fn list_snippets(db: State<'_, DbState>) -> Result<Vec<db::Snippet>, String> {
+    let conn = db.lock().unwrap();
+    db::list_snippets(&conn).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+pub fn add_snippet(db: State<'_, DbState>, content: String) -> Result<i64, String> {
+    let conn = db.lock().unwrap();
+    db::add_snippet(&conn, &content, now_millis()).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+pub fn delete_snippet(db: State<'_, DbState>, id: i64) -> Result<(), String> {
+    let conn = db.lock().unwrap();
+    db::delete_snippet(&conn, id).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+pub fn copy_snippet_to_clipboard(db: State<'_, DbState>, id: i64) -> Result<(), String> {
+    let content = {
+        let conn = db.lock().unwrap();
+        db::snippet_content(&conn, id)
+            .map_err(|err| err.to_string())?
+            .ok_or("snippet not found")?
+    };
+    set_clipboard(formats::Unicode, content).map_err(|err| err.to_string())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportEntryJson {
+    kind: String,
+    preview: String,
+    search_text: String,
+    content: Option<String>,
+    file_list: Option<String>,
+    image_base64: Option<String>,
+    image_is_thumbnail: bool,
+    pinned: bool,
+    created_at: i64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportSnippetJson {
+    content: String,
+    created_at: i64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportFile {
+    version: u32,
+    exported_at: i64,
+    entries: Vec<ExportEntryJson>,
+    snippets: Vec<ExportSnippetJson>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ImportEntryJson {
+    kind: String,
+    preview: String,
+    search_text: String,
+    content: Option<String>,
+    file_list: Option<String>,
+    image_base64: Option<String>,
+    #[serde(default)]
+    image_is_thumbnail: bool,
+    pinned: bool,
+    created_at: i64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ImportSnippetJson {
+    content: String,
+    created_at: i64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ImportFile {
+    entries: Vec<ImportEntryJson>,
+    #[serde(default)]
+    snippets: Vec<ImportSnippetJson>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportSummary {
+    pub entries: i64,
+    pub snippets: i64,
+}
+
+#[tauri::command]
+pub fn export_history(app: AppHandle, db: State<'_, DbState>) -> Result<ExportSummary, String> {
+    let (entries, snippets) = {
+        let conn = db.lock().unwrap();
+        (
+            db::list_all_for_export(&conn).map_err(|err| err.to_string())?,
+            db::list_snippets(&conn).map_err(|err| err.to_string())?,
+        )
+    };
+
+    use base64::Engine;
+    let entries: Vec<ExportEntryJson> = entries
+        .into_iter()
+        .map(|entry| {
+            let (image_base64, image_is_thumbnail) = match (&entry.image_path, &entry.thumbnail) {
+                (Some(path), _) => (
+                    std::fs::read(path)
+                        .ok()
+                        .map(|bytes| base64::engine::general_purpose::STANDARD.encode(bytes)),
+                    false,
+                ),
+                (None, Some(thumb)) => (
+                    Some(base64::engine::general_purpose::STANDARD.encode(thumb)),
+                    true,
+                ),
+                (None, None) => (None, false),
+            };
+            ExportEntryJson {
+                kind: entry.kind,
+                preview: entry.preview,
+                search_text: entry.search_text,
+                content: entry.content,
+                file_list: entry.file_list,
+                image_base64,
+                image_is_thumbnail,
+                pinned: entry.pinned,
+                created_at: entry.created_at,
+            }
+        })
+        .collect();
+
+    let snippets: Vec<ExportSnippetJson> = snippets
+        .into_iter()
+        .map(|snippet| ExportSnippetJson {
+            content: snippet.content,
+            created_at: snippet.created_at,
+        })
+        .collect();
+
+    let summary = ExportSummary {
+        entries: entries.len() as i64,
+        snippets: snippets.len() as i64,
+    };
+    let export = ExportFile {
+        version: 1,
+        exported_at: now_millis(),
+        entries,
+        snippets,
+    };
+    let json = serde_json::to_string_pretty(&export).map_err(|err| err.to_string())?;
+
+    let path = app
+        .dialog()
+        .file()
+        .add_filter("JSON", &["json"])
+        .set_file_name("clipvault-export.json")
+        .blocking_save_file()
+        .ok_or("esportazione annullata")?;
+    let path = path.into_path().map_err(|err| err.to_string())?;
+    std::fs::write(path, json).map_err(|err| err.to_string())?;
+
+    Ok(summary)
+}
+
+/// PNG bytes -> a small thumbnail, PNG-encoded, matching the same size cap used for
+/// freshly captured images (see `capture::THUMBNAIL_MAX`) — imported images need their own
+/// thumbnail generated since the export only carries the full-resolution bytes (or, for
+/// images that were already thumbnail-only, just those).
+fn thumbnail_from_png(png_bytes: &[u8]) -> Option<Vec<u8>> {
+    let img = image::load_from_memory(png_bytes).ok()?;
+    let thumbnail = img.thumbnail(200, 200);
+    let mut bytes = Vec::new();
+    thumbnail
+        .write_to(
+            &mut std::io::Cursor::new(&mut bytes),
+            image::ImageFormat::Png,
+        )
+        .ok()?;
+    Some(bytes)
+}
+
+#[tauri::command]
+pub fn import_history(app: AppHandle, db: State<'_, DbState>) -> Result<ExportSummary, String> {
+    let path = app
+        .dialog()
+        .file()
+        .add_filter("JSON", &["json"])
+        .blocking_pick_file()
+        .ok_or("importazione annullata")?;
+    let path = path.into_path().map_err(|err| err.to_string())?;
+    let json = std::fs::read_to_string(path).map_err(|err| err.to_string())?;
+    let import: ImportFile = serde_json::from_str(&json).map_err(|err| err.to_string())?;
+
+    let images_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|err| err.to_string())?
+        .join("images");
+
+    let conn = db.lock().unwrap();
+    let mut entries_imported = 0i64;
+    for entry in import.entries {
+        let kind: &'static str = match entry.kind.as_str() {
+            "text" => "text",
+            "image" => "image",
+            "files" => "files",
+            _ => continue,
+        };
+
+        let (image_path, thumbnail) = match &entry.image_base64 {
+            Some(encoded) => {
+                use base64::Engine;
+                let bytes = base64::engine::general_purpose::STANDARD
+                    .decode(encoded)
+                    .map_err(|err| err.to_string())?;
+                if entry.image_is_thumbnail {
+                    (None, Some(bytes))
+                } else {
+                    use sha2::Digest as _;
+                    let hash = format!("{:x}", sha2::Sha256::digest(&bytes));
+                    let path = images_dir.join(format!("{hash}.png"));
+                    if !path.exists() {
+                        std::fs::write(&path, &bytes).map_err(|err| err.to_string())?;
+                    }
+                    (
+                        Some(path.to_string_lossy().into_owned()),
+                        thumbnail_from_png(&bytes),
+                    )
+                }
+            }
+            None => (None, None),
+        };
+
+        use sha2::Digest as _;
+        let hash_source = entry.content.as_deref().unwrap_or(&entry.search_text);
+        let hash = format!(
+            "{:x}",
+            sha2::Sha256::digest(format!("{kind}-{}-{hash_source}", entry.created_at).as_bytes())
+        );
+
+        let new_entry = db::NewEntry {
+            kind,
+            preview: entry.preview,
+            search_text: entry.search_text,
+            content: entry.content,
+            image_path,
+            file_list: entry.file_list,
+            thumbnail,
+            hash,
+        };
+        db::import_entry(&conn, &new_entry, entry.pinned, entry.created_at)
+            .map_err(|err| err.to_string())?;
+        entries_imported += 1;
+    }
+
+    let mut snippets_imported = 0i64;
+    for snippet in import.snippets {
+        db::add_snippet(&conn, &snippet.content, snippet.created_at)
+            .map_err(|err| err.to_string())?;
+        snippets_imported += 1;
+    }
+
+    Ok(ExportSummary {
+        entries: entries_imported,
+        snippets: snippets_imported,
+    })
 }
 
 #[tauri::command]
@@ -88,6 +370,16 @@ pub fn open_entry(app: AppHandle, db: State<'_, DbState>, id: i64) -> Result<(),
     };
     app.opener()
         .open_path(path, None::<&str>)
+        .map_err(|err| err.to_string())
+}
+
+/// Opens an arbitrary URL (http(s):// link or mailto:) in the OS default handler. Used for
+/// the quick actions on copied text recognized as a URL or email address — the frontend
+/// does the recognizing, this just hands off to the OS.
+#[tauri::command]
+pub fn open_url(app: AppHandle, url: String) -> Result<(), String> {
+    app.opener()
+        .open_url(url, None::<&str>)
         .map_err(|err| err.to_string())
 }
 

@@ -75,6 +75,10 @@ fn hash_bytes(bytes: &[u8]) -> String {
 }
 
 fn read_clipboard(images_dir: &Path, max_file_kb: i64) -> Option<NewEntry> {
+    if is_excluded_from_history() {
+        return None;
+    }
+
     if let Ok(files) = get_clipboard::<Vec<PathBuf>, _>(formats::FileList) {
         if !files.is_empty() {
             return Some(build_files_entry(files));
@@ -96,6 +100,15 @@ fn read_clipboard(images_dir: &Path, max_file_kb: i64) -> Option<NewEntry> {
     }
 
     None
+}
+
+/// De-facto Windows convention for opting sensitive clipboard content out of clipboard
+/// managers: password managers (1Password, Bitwarden, KeePass, ...) and Windows' own
+/// Clipboard History all register this custom format alongside the data they copy, and
+/// well-behaved clipboard managers skip capturing anything when it's present.
+fn is_excluded_from_history() -> bool {
+    clipboard_win::register_format("ExcludeClipboardContentFromMonitorProcessing")
+        .is_some_and(|format| clipboard_win::is_format_avail(format.get()))
 }
 
 fn build_text_entry(text: String) -> NewEntry {

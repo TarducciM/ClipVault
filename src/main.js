@@ -8,6 +8,8 @@ let currentEntries = [];
 let selectedIndex = 0;
 let favoritesOnly = false;
 let extendedView = false;
+let snippetsView = false;
+let currentSnippets = [];
 
 function iconFor(kind) {
   switch (kind) {
@@ -62,6 +64,19 @@ async function runAction(promise, errorKey) {
 async function selectEntry(id) {
   await runAction(invoke("copy_entry_to_clipboard", { id }), "errorCopy");
   getCurrentWindow().hide();
+}
+
+async function selectSnippet(id) {
+  await runAction(invoke("copy_snippet_to_clipboard", { id }), "errorCopy");
+  getCurrentWindow().hide();
+}
+
+async function addSnippetFromInput() {
+  const content = searchInput.value.trim();
+  if (!content) return;
+  await invoke("add_snippet", { content });
+  searchInput.value = "";
+  refresh();
 }
 
 function hideOnboarding() {
@@ -125,6 +140,17 @@ function showContextMenu(x, y, entry) {
     addItem(I18n.t("contextReveal"), () => runAction(invoke("reveal_entry", { id: entry.id }), "errorReveal"));
   }
 
+  if (entry.kind === "text") {
+    const textKind = PreviewRender.classifyText(entry.preview);
+    if (textKind === "url") {
+      addItem(I18n.t("contextOpenUrl"), () => runAction(invoke("open_url", { url: entry.preview.trim() }), "errorOpen"));
+    } else if (textKind === "email") {
+      addItem(I18n.t("contextComposeEmail"), () =>
+        runAction(invoke("open_url", { url: `mailto:${entry.preview.trim()}` }), "errorOpen"),
+      );
+    }
+  }
+
   addItem(entry.pinned ? I18n.t("contextUnpin") : I18n.t("contextPin"), async () => {
     await invoke("toggle_pin", { id: entry.id, pinned: !entry.pinned });
     refresh();
@@ -165,11 +191,18 @@ function buildHistoryItem(entry, index) {
     item.appendChild(number);
   }
 
+  const textKind = entry.kind === "text" ? PreviewRender.classifyText(entry.preview) : null;
+
   if (entry.thumbnail) {
     const img = document.createElement("img");
     img.className = "history-thumb";
     img.src = `data:image/png;base64,${entry.thumbnail}`;
     item.appendChild(img);
+  } else if (textKind === "color") {
+    const swatch = document.createElement("span");
+    swatch.className = "color-swatch";
+    swatch.style.backgroundColor = PreviewRender.toCssColor(entry.preview);
+    item.appendChild(swatch);
   } else {
     const badge = document.createElement("span");
     badge.className = "history-icon";
@@ -232,6 +265,74 @@ function buildHistoryItem(entry, index) {
   return item;
 }
 
+function buildSnippetItem(snippet, index) {
+  const item = document.createElement("li");
+  item.className = "history-item";
+  item.dataset.id = snippet.id;
+
+  if (index < QUICK_SELECT_COUNT) {
+    const number = document.createElement("span");
+    number.className = "item-number";
+    number.textContent = String(index + 1);
+    item.appendChild(number);
+  }
+
+  const badge = document.createElement("span");
+  badge.className = "history-icon";
+  badge.textContent = "🗒";
+  item.appendChild(badge);
+
+  const text = document.createElement("span");
+  text.className = "history-text";
+  text.textContent = snippet.content;
+  item.appendChild(text);
+
+  const remove = document.createElement("button");
+  remove.className = "delete-btn";
+  remove.type = "button";
+  remove.title = I18n.t("contextDelete");
+  remove.textContent = "×";
+  remove.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    await invoke("delete_snippet", { id: snippet.id });
+    refresh();
+  });
+  item.appendChild(remove);
+
+  item.addEventListener("click", () => selectSnippet(snippet.id));
+
+  return item;
+}
+
+function renderSnippets(snippets) {
+  currentSnippets = snippets;
+  selectedIndex = snippets.length > 0 ? 0 : -1;
+
+  const list = document.querySelector("#history-list");
+  const emptyState = document.querySelector("#empty-state");
+  list.innerHTML = "";
+
+  if (snippets.length === 0) {
+    emptyState.innerHTML = "";
+    const title = document.createElement("span");
+    title.textContent = I18n.t("emptySnippetsTitle");
+    const subtitle = document.createElement("span");
+    subtitle.textContent = I18n.t("emptySnippetsSubtitle");
+    emptyState.appendChild(title);
+    emptyState.appendChild(document.createElement("br"));
+    emptyState.appendChild(subtitle);
+    emptyState.style.display = "block";
+    return;
+  }
+  emptyState.style.display = "none";
+
+  snippets.forEach((snippet, index) => {
+    list.appendChild(buildSnippetItem(snippet, index));
+  });
+
+  highlightSelected();
+}
+
 function renderHistory(entries) {
   currentEntries = entries;
   selectedIndex = entries.length > 0 ? 0 : -1;
@@ -285,6 +386,11 @@ function renderHistory(entries) {
 }
 
 async function refresh() {
+  if (snippetsView) {
+    const snippets = await invoke("list_snippets");
+    renderSnippets(snippets);
+    return;
+  }
   const query = searchInput.value.trim();
   let entries = await invoke("get_history", { query: query.length > 0 ? query : null });
   if (favoritesOnly) {
@@ -294,6 +400,16 @@ async function refresh() {
     entries = [...entries].sort((a, b) => b.createdAt - a.createdAt);
   }
   renderHistory(entries);
+}
+
+function toggleSnippetsView() {
+  snippetsView = !snippetsView;
+  const btn = document.querySelector("#snippets-toggle");
+  btn.classList.toggle("active", snippetsView);
+  btn.title = I18n.t(snippetsView ? "snippetsTooltipOff" : "snippetsTooltipOn");
+  searchInput.value = "";
+  searchInput.placeholder = snippetsView ? I18n.t("snippetsInputPlaceholder") : I18n.t("searchPlaceholder");
+  refresh();
 }
 
 function toggleFavoritesOnly() {
@@ -314,12 +430,18 @@ function toggleExtendedView() {
 }
 
 function moveSelection(delta) {
-  if (currentEntries.length === 0) return;
-  selectedIndex = Math.min(Math.max(selectedIndex + delta, 0), currentEntries.length - 1);
+  const list = snippetsView ? currentSnippets : currentEntries;
+  if (list.length === 0) return;
+  selectedIndex = Math.min(Math.max(selectedIndex + delta, 0), list.length - 1);
   highlightSelected();
 }
 
 async function activateSelection() {
+  if (snippetsView) {
+    const snippet = currentSnippets[selectedIndex];
+    if (snippet) await selectSnippet(snippet.id);
+    return;
+  }
   const entry = currentEntries[selectedIndex];
   if (entry) {
     await selectEntry(entry.id);
@@ -334,6 +456,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const settingsBtn = document.querySelector("#settings-btn");
   const favoritesBtn = document.querySelector("#favorites-toggle");
   const extendedBtn = document.querySelector("#extended-toggle");
+  const snippetsBtn = document.querySelector("#snippets-toggle");
 
   document.addEventListener("contextmenu", (event) => event.preventDefault());
   document.addEventListener("click", (event) => {
@@ -341,6 +464,7 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   searchInput.addEventListener("input", () => {
+    if (snippetsView) return;
     clearTimeout(debounceHandle);
     debounceHandle = setTimeout(refresh, 120);
   });
@@ -348,8 +472,9 @@ window.addEventListener("DOMContentLoaded", () => {
   searchInput.addEventListener("keydown", (event) => {
     if (event.ctrlKey && /^[1-9]$/.test(event.key)) {
       event.preventDefault();
-      const entry = currentEntries[Number(event.key) - 1];
-      if (entry) selectEntry(entry.id);
+      const list = snippetsView ? currentSnippets : currentEntries;
+      const item = list[Number(event.key) - 1];
+      if (item) snippetsView ? selectSnippet(item.id) : selectEntry(item.id);
       return;
     }
 
@@ -364,7 +489,11 @@ window.addEventListener("DOMContentLoaded", () => {
         break;
       case "Enter":
         event.preventDefault();
-        activateSelection();
+        if (snippetsView && searchInput.value.trim().length > 0) {
+          addSnippetFromInput();
+        } else {
+          activateSelection();
+        }
         break;
       case "Escape":
         event.preventDefault();
@@ -394,6 +523,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   favoritesBtn.addEventListener("click", toggleFavoritesOnly);
   extendedBtn.addEventListener("click", toggleExtendedView);
+  snippetsBtn.addEventListener("click", toggleSnippetsView);
 
   document.querySelector("#onboarding-dismiss").addEventListener("click", async () => {
     hideOnboarding();

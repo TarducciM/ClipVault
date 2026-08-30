@@ -36,6 +36,11 @@ const SCHEMA: &str = "
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS snippets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+    );
 ";
 
 pub fn open(app_data_dir: &Path) -> rusqlite::Result<Connection> {
@@ -289,6 +294,71 @@ pub fn get_full(conn: &Connection, id: i64) -> rusqlite::Result<Option<FullEntry
     .optional()
 }
 
+/// All the fields of an entry needed to write it out to an export file and later
+/// reconstruct it faithfully on import (unlike `HistoryEntry`, which only carries what the
+/// popup's list view needs).
+pub struct ExportEntry {
+    pub kind: String,
+    pub preview: String,
+    pub search_text: String,
+    pub content: Option<String>,
+    pub image_path: Option<String>,
+    pub file_list: Option<String>,
+    pub thumbnail: Option<Vec<u8>>,
+    pub pinned: bool,
+    pub created_at: i64,
+}
+
+pub fn list_all_for_export(conn: &Connection) -> rusqlite::Result<Vec<ExportEntry>> {
+    let mut stmt = conn.prepare(
+        "SELECT kind, preview, search_text, content, image_path, file_list, thumbnail, pinned, created_at
+         FROM entries ORDER BY id ASC",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(ExportEntry {
+            kind: row.get(0)?,
+            preview: row.get(1)?,
+            search_text: row.get(2)?,
+            content: row.get(3)?,
+            image_path: row.get(4)?,
+            file_list: row.get(5)?,
+            thumbnail: row.get(6)?,
+            pinned: row.get::<_, i64>(7)? != 0,
+            created_at: row.get(8)?,
+        })
+    })?;
+    rows.collect()
+}
+
+/// Inserts an entry with its original `pinned`/`created_at` preserved, for restoring an
+/// export. Unlike `insert` (used for live captures), this never prunes — pruning based on
+/// the entry's own (possibly old) timestamp would be wrong, and an import shouldn't quietly
+/// delete part of what it just restored.
+pub fn import_entry(
+    conn: &Connection,
+    entry: &NewEntry,
+    pinned: bool,
+    created_at: i64,
+) -> rusqlite::Result<i64> {
+    conn.execute(
+        "INSERT INTO entries (kind, preview, search_text, content, image_path, file_list, thumbnail, hash, pinned, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        params![
+            entry.kind,
+            entry.preview,
+            entry.search_text,
+            entry.content,
+            entry.image_path,
+            entry.file_list,
+            entry.thumbnail,
+            entry.hash,
+            pinned as i64,
+            created_at,
+        ],
+    )?;
+    Ok(conn.last_insert_rowid())
+}
+
 pub fn set_pinned(conn: &Connection, id: i64, pinned: bool) -> rusqlite::Result<()> {
     conn.execute(
         "UPDATE entries SET pinned = ?1 WHERE id = ?2",
@@ -305,6 +375,50 @@ pub fn delete(conn: &Connection, id: i64) -> rusqlite::Result<()> {
 pub fn clear_unpinned(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute("DELETE FROM entries WHERE pinned = 0", [])?;
     Ok(())
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Snippet {
+    pub id: i64,
+    pub content: String,
+    pub created_at: i64,
+}
+
+/// Snippets are user-authored, not captured from the clipboard — they live in their own
+/// table so they're never touched by the history's count/age-based pruning.
+pub fn list_snippets(conn: &Connection) -> rusqlite::Result<Vec<Snippet>> {
+    let mut stmt = conn.prepare("SELECT id, content, created_at FROM snippets ORDER BY id DESC")?;
+    let rows = stmt.query_map([], |row| {
+        Ok(Snippet {
+            id: row.get(0)?,
+            content: row.get(1)?,
+            created_at: row.get(2)?,
+        })
+    })?;
+    rows.collect()
+}
+
+pub fn add_snippet(conn: &Connection, content: &str, created_at: i64) -> rusqlite::Result<i64> {
+    conn.execute(
+        "INSERT INTO snippets (content, created_at) VALUES (?1, ?2)",
+        params![content, created_at],
+    )?;
+    Ok(conn.last_insert_rowid())
+}
+
+pub fn delete_snippet(conn: &Connection, id: i64) -> rusqlite::Result<()> {
+    conn.execute("DELETE FROM snippets WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
+pub fn snippet_content(conn: &Connection, id: i64) -> rusqlite::Result<Option<String>> {
+    conn.query_row(
+        "SELECT content FROM snippets WHERE id = ?1",
+        params![id],
+        |row| row.get(0),
+    )
+    .optional()
 }
 
 #[cfg(test)]
@@ -586,5 +700,45 @@ mod tests {
         assert_eq!(stats.total, 0);
         assert_eq!(stats.oldest_created_at, None);
         assert_eq!(stats.newest_created_at, None);
+    }
+
+    #[test]
+    fn snippets_are_listed_newest_first() {
+        let conn = open_in_memory();
+        add_snippet(&conn, "first", 1).unwrap();
+        add_snippet(&conn, "second", 2).unwrap();
+        let snippets = list_snippets(&conn).unwrap();
+        assert_eq!(snippets.len(), 2);
+        assert_eq!(snippets[0].content, "second");
+        assert_eq!(snippets[1].content, "first");
+    }
+
+    #[test]
+    fn snippet_content_returns_none_for_missing_id() {
+        let conn = open_in_memory();
+        assert_eq!(snippet_content(&conn, 999).unwrap(), None);
+    }
+
+    #[test]
+    fn delete_snippet_removes_only_the_targeted_one() {
+        let conn = open_in_memory();
+        let id1 = add_snippet(&conn, "keep me", 1).unwrap();
+        let id2 = add_snippet(&conn, "delete me", 2).unwrap();
+        delete_snippet(&conn, id2).unwrap();
+        let snippets = list_snippets(&conn).unwrap();
+        assert_eq!(snippets.len(), 1);
+        assert_eq!(snippets[0].id, id1);
+        assert_eq!(snippet_content(&conn, id2).unwrap(), None);
+    }
+
+    #[test]
+    fn snippets_are_unaffected_by_history_pruning() {
+        let conn = open_in_memory();
+        set_setting(&conn, "max_history", "1").unwrap();
+        add_snippet(&conn, "a lasting snippet", 1).unwrap();
+        for i in 0..5 {
+            insert(&conn, &text_entry(&format!("entry {i}")), i).unwrap();
+        }
+        assert_eq!(list_snippets(&conn).unwrap().len(), 1);
     }
 }

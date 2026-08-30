@@ -129,6 +129,22 @@ body {
   font-size: 1.1em;
 }
 
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.color-swatch-large {
+  width: 100%;
+  height: 60px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  margin-bottom: 10px;
+}
+
 .history-text {
   flex: 1;
   min-width: 0;
@@ -629,6 +645,11 @@ kbd {
 
   .search-bar {
     border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .color-swatch,
+  .color-swatch-large {
+    border-color: rgba(255, 255, 255, 0.15);
   }
 
   #search-input {

@@ -42,6 +42,7 @@ pub fn run() {
 
     builder
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![]),
@@ -54,6 +55,7 @@ pub fn run() {
             commands::clear_history,
             commands::copy_entry_to_clipboard,
             commands::open_entry,
+            commands::open_url,
             commands::reveal_entry,
             commands::get_entry_preview,
             commands::get_settings,
@@ -62,6 +64,12 @@ pub fn run() {
             commands::set_hotkey,
             commands::show_settings_window,
             commands::show_viewer_window,
+            commands::list_snippets,
+            commands::add_snippet,
+            commands::delete_snippet,
+            commands::copy_snippet_to_clipboard,
+            commands::export_history,
+            commands::import_history,
             commands::should_show_onboarding,
             commands::mark_onboarding_seen,
         ])

@@ -11,6 +11,26 @@
     return `${value.toFixed(1)} ${units[i]}`;
   }
 
+  const URL_RE = /^https?:\/\/\S+$/i;
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const COLOR_RE = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+  // Classifies a *whole* copied text as a URL, email, or hex color — not just "contains
+  // one somewhere" — so quick actions only show up when that's plausibly the point of the
+  // copy, not for a paragraph that happens to mention an address.
+  function classifyText(text) {
+    const trimmed = text.trim();
+    if (URL_RE.test(trimmed)) return "url";
+    if (EMAIL_RE.test(trimmed)) return "email";
+    if (COLOR_RE.test(trimmed)) return "color";
+    return null;
+  }
+
+  function toCssColor(text) {
+    const trimmed = text.trim();
+    return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+  }
+
   // Mouse-wheel to zoom in/out around the current scroll position, double-click to reset.
   // Panning once zoomed past the container just uses the container's own scrollbars.
   function setupImageZoom(img) {
@@ -92,6 +112,12 @@
   // standalone viewer window, so the two stay visually consistent.
   function render(container, data) {
     if (data.kind === "text") {
+      if (classifyText(data.text) === "color") {
+        const swatch = document.createElement("div");
+        swatch.className = "color-swatch color-swatch-large";
+        swatch.style.backgroundColor = toCssColor(data.text);
+        container.appendChild(swatch);
+      }
       const pre = document.createElement("pre");
       pre.className = "preview-text";
       pre.textContent = data.text;
@@ -177,5 +203,5 @@
     }
   }
 
-  window.PreviewRender = { render, formatBytes };
+  window.PreviewRender = { render, formatBytes, classifyText, toCssColor };
 })();
