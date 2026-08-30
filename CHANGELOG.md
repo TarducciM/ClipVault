@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-08-30 — Release v0.3.1
+
+- Versione alzata a **0.3.1** e taggata: da v0.3.0 sono state aggiunte l'esclusione dei password manager dalla cronologia, il riconoscimento di URL/email/colore, gli snippet fissi ed esporta/importa cronologia (vedi voce sotto per il dettaglio).
+
 ## 2026-08-30 — Esclusione password manager, riconoscimento URL/email/colore, snippet, esporta/importa cronologia
 
 - **Esclusione password manager**: ClipVault ora rispetta la convenzione de-facto di Windows `ExcludeClipboardContentFromMonitorProcessing` — il formato che 1Password, Bitwarden, KeePass e la stessa Cronologia appunti di Windows registrano insieme al contenuto copiato per dire ai clipboard manager "non salvarmi". Verificato dal vivo simulando il comportamento reale di un password manager (scritto sugli appunti un testo con quel formato via `System.Windows.Forms.DataObject`): la voce non è mai comparsa in cronologia, mentre una copia normale subito dopo è stata catturata regolarmente, confermando che l'esclusione non blocca le catture successive.
