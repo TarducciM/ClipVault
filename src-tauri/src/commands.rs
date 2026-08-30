@@ -349,15 +349,17 @@ fn read_text_preview(path: &str, kind: TextPreviewKind) -> Option<(String, bool)
 
 const MAX_ZIP_ENTRIES_LISTED: usize = 200;
 
-/// Lists the contents of a `.zip` or `.7z` archive (name, size, CRC32) without extracting
-/// it. Returns `None` for other file types, or if the archive can't be read (corrupt,
-/// unsupported, password-protected header, etc).
+/// Lists the contents of a `.zip`, `.7z`, or `.rar` archive (name, size, CRC32) without
+/// extracting it. Returns `None` for other file types, or if the archive can't be read
+/// (corrupt, unsupported, password-protected header, etc).
 fn read_zip_entries(path: &str) -> Option<Vec<ZipEntry>> {
     let lower = path.to_lowercase();
     if lower.ends_with(".zip") {
         read_zip_archive(path)
     } else if lower.ends_with(".7z") {
         read_7z_archive(path)
+    } else if lower.ends_with(".rar") {
+        read_rar_archive(path)
     } else {
         None
     }
@@ -398,6 +400,27 @@ fn read_7z_archive(path: &str) -> Option<Vec<ZipEntry>> {
             },
         })
         .collect();
+    Some(entries)
+}
+
+/// Uses the `unrar` crate, which statically compiles the official UnRAR source (freeware,
+/// read-only use permitted without restriction — see THIRD-PARTY-NOTICES.md at the repo
+/// root for the full license text this crate requires reproducing).
+fn read_rar_archive(path: &str) -> Option<Vec<ZipEntry>> {
+    let archive = unrar::Archive::new(path).open_for_listing().ok()?;
+    let mut entries = Vec::new();
+    for entry in archive {
+        if entries.len() >= MAX_ZIP_ENTRIES_LISTED {
+            break;
+        }
+        let entry = entry.ok()?;
+        entries.push(ZipEntry {
+            name: entry.filename.to_string_lossy().into_owned(),
+            size_bytes: entry.unpacked_size,
+            is_dir: entry.is_directory(),
+            crc32: format!("{:08x}", entry.file_crc),
+        });
+    }
     Some(entries)
 }
 

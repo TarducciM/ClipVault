@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-30 — Aggiunto anche il supporto .rar
+
+- Nella voce precedente avevo lasciato fuori `.rar` per via della dipendenza esterna che sembrava richiedere. Controllando meglio il crate [`unrar`](https://crates.io/crates/unrar): **vendorizza e compila staticamente il sorgente ufficiale UnRAR** dentro l'eseguibile stesso — nessuna DLL esterna, nessuna installazione richiesta all'utente, stessa affidabilità di zip/7z. Aggiunto.
+- Il sorgente UnRAR è freeware per uso in lettura (non per creare archiviatori compatibili con RAR) ma la licenza richiede di includerne il testo per intero — aggiunto [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) alla root del repo con la licenza completa, linkato dal README.
+- Verificato dal vivo con un archivio `.rar` di test: stessi file/CRC32 già usati per confrontare zip e 7z, valori identici su tutti e tre i formati.
+
 ## 2026-08-30 — CRC32 per file negli archivi, supporto 7z, zoom su testo/PDF
 
 - L'anteprima di uno `.zip` mostrava nome e dimensione di ogni file contenuto ma non il CRC32 — aggiunto (il crate `zip` lo espone già per ogni voce, nessun calcolo aggiuntivo).

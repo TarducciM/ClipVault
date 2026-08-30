@@ -14,7 +14,7 @@ Windows non ha mai avuto un vero equivalente moderno — le alternative open sou
 
 - Cronologia clipboard: testo, immagini e file, con ricerca istantanea
 - Hotkey globale personalizzabile (default `Ctrl+Shift+V`) per aprire un popup vicino al cursore da qualsiasi punto di Windows
-- Doppio click su una voce per un'anteprima grande: testo intero, immagine, contenuto di un archivio `.zip`, oppure nome/dimensione/data modifica/SHA1/CRC32 per gli altri file
+- Doppio click su una voce per un'anteprima grande (con finestra dedicata per vederla ancora più grande, e zoom su immagini/testo): testo intero, immagine, contenuto di un archivio `.zip`/`.7z`/`.rar` (nome, dimensione, CRC32 di ogni file), il contenuto stesso per file di testo/codice/PDF, oppure nome/dimensione/data modifica/SHA1/CRC32 per gli altri file
 - Preferiti: stella una voce per tenerla sempre in cima, filtro rapido per vederli solo quelli
 - Vista estesa della cronologia: orario di copia e raggruppamento per giorno ("Oggi", "Ieri", ...)
 - Impostazioni: lunghezza massima cronologia, dimensione massima file (oltre la soglia si tiene solo un'anteprima ridotta), eliminazione automatica delle voci vecchie, avvio automatico con Windows, statistiche (voci totali, per tipo, spazio occupato, ecc.)
@@ -62,7 +62,7 @@ Genera un eseguibile nativo in `src-tauri/target/release/`. Pushando un tag `vX.
 
 ### Licenza
 
-[MIT](LICENSE)
+[MIT](LICENSE) — vedi [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) per il codice sorgente di terze parti incluso (UnRAR).
 
 ---
 
@@ -76,7 +76,7 @@ Windows never got a good modern equivalent — the open source options are eithe
 
 - Clipboard history: text, images, and files, with instant search
 - Customizable global hotkey (default `Ctrl+Shift+V`) to open a small popup near the cursor from anywhere in Windows
-- Double-click an entry for a large preview: full text, image, the contents of a `.zip` archive, or name/size/modified date/SHA1/CRC32 for other files
+- Double-click an entry for a large preview (with a dedicated window to see it even bigger, plus zoom on images/text): full text, image, the contents of a `.zip`/`.7z`/`.rar` archive (name, size, CRC32 per file), the content itself for text/code/PDF files, or name/size/modified date/SHA1/CRC32 for other files
 - Favorites: star an entry to keep it always at the top, plus a quick filter to show only those
 - Extended history view: copy time and day-grouping ("Today", "Yesterday", ...)
 - Settings: max history length, max file size (above the threshold only a small preview thumbnail is kept), automatic deletion of old entries, launch at Windows startup, stats (total entries, by type, storage used, etc.)
@@ -124,4 +124,4 @@ Produces a native executable under `src-tauri/target/release/`. Pushing a `vX.Y.
 
 ### License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for third-party source code included (UnRAR).
