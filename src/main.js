@@ -75,23 +75,14 @@ async function showOnboardingIfNeeded() {
   }
 }
 
-function formatBytes(bytes) {
-  if (bytes == null) return "-";
-  const units = ["B", "KB", "MB", "GB"];
-  let value = bytes;
-  let i = 0;
-  while (value >= 1024 && i < units.length - 1) {
-    value /= 1024;
-    i++;
-  }
-  return `${value.toFixed(1)} ${units[i]}`;
-}
-
 function hidePreview() {
   document.querySelector("#preview-overlay").classList.remove("visible");
 }
 
+let currentPreviewEntry = null;
+
 async function showPreview(entry) {
+  currentPreviewEntry = entry;
   const titleEl = document.querySelector("#preview-title");
   const content = document.querySelector("#preview-content");
   titleEl.textContent = entry.preview;
@@ -101,77 +92,7 @@ async function showPreview(entry) {
   try {
     const data = await invoke("get_entry_preview", { id: entry.id });
     content.innerHTML = "";
-
-    if (data.kind === "text") {
-      const pre = document.createElement("pre");
-      pre.className = "preview-text";
-      pre.textContent = data.text;
-      content.appendChild(pre);
-    } else if (data.kind === "image") {
-      if (data.imageIsThumbnail) {
-        const note = document.createElement("p");
-        note.className = "preview-note";
-        note.textContent = I18n.t("previewImageThumbnailOnly");
-        content.appendChild(note);
-      }
-      const img = document.createElement("img");
-      img.className = "preview-image";
-      img.src = data.imageDataUrl;
-      content.appendChild(img);
-    } else if (data.kind === "files") {
-      const table = document.createElement("table");
-      table.className = "preview-files";
-      const headerRow = document.createElement("tr");
-      ["previewFileName", "previewFileSize", "previewFileModified", "previewFileSha1", "previewFileCrc32"].forEach(
-        (key) => {
-          const th = document.createElement("th");
-          th.textContent = I18n.t(key);
-          headerRow.appendChild(th);
-        },
-      );
-      table.appendChild(headerRow);
-
-      for (const file of data.files) {
-        const row = document.createElement("tr");
-        const hashNote = file.tooLarge ? I18n.t("previewFileTooLarge") : "-";
-        const cells = [
-          file.name,
-          file.exists ? formatBytes(file.sizeBytes) : I18n.t("previewFileNotFound"),
-          file.modified ? new Date(file.modified).toLocaleString("it-IT") : "-",
-          file.sha1 || hashNote,
-          file.crc32 || hashNote,
-        ];
-        cells.forEach((value) => {
-          const td = document.createElement("td");
-          td.textContent = value;
-          row.appendChild(td);
-        });
-        table.appendChild(row);
-
-        if (file.zipEntries) {
-          const zipRow = document.createElement("tr");
-          const zipCell = document.createElement("td");
-          zipCell.colSpan = 5;
-          zipCell.className = "zip-contents";
-
-          const zipTitle = document.createElement("div");
-          zipTitle.className = "zip-contents-title";
-          zipTitle.textContent = I18n.t("previewZipContents");
-          zipCell.appendChild(zipTitle);
-
-          const zipList = document.createElement("ul");
-          for (const zipEntry of file.zipEntries) {
-            const li = document.createElement("li");
-            li.textContent = zipEntry.isDir ? `${zipEntry.name}` : `${zipEntry.name} (${formatBytes(zipEntry.sizeBytes)})`;
-            zipList.appendChild(li);
-          }
-          zipCell.appendChild(zipList);
-          zipRow.appendChild(zipCell);
-          table.appendChild(zipRow);
-        }
-      }
-      content.appendChild(table);
-    }
+    PreviewRender.render(content, data);
   } catch (err) {
     content.textContent = `${I18n.t("previewErrorPrefix")}: ${err}`;
   }
@@ -482,6 +403,13 @@ window.addEventListener("DOMContentLoaded", () => {
   document.querySelector("#preview-close").addEventListener("click", hidePreview);
   document.querySelector("#preview-overlay").addEventListener("click", (event) => {
     if (event.target.id === "preview-overlay") hidePreview();
+  });
+  document.querySelector("#preview-expand").addEventListener("click", () => {
+    if (!currentPreviewEntry) return;
+    runAction(
+      invoke("show_viewer_window", { id: currentPreviewEntry.id, title: currentPreviewEntry.preview }),
+      "errorViewerOpen",
+    );
   });
 
   listen("history-updated", refresh);

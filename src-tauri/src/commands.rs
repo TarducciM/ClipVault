@@ -129,6 +129,11 @@ pub struct FilePreview {
     pub sha1: Option<String>,
     pub crc32: Option<String>,
     pub zip_entries: Option<Vec<ZipEntry>>,
+    /// Text content preview for plain-text/source files, or text extracted from a PDF
+    /// (not a rendering of its visual layout). `None` for other file types, or when the
+    /// file is above the "max file size" threshold.
+    pub text_preview: Option<String>,
+    pub text_preview_truncated: bool,
 }
 
 #[derive(Serialize)]
@@ -216,6 +221,8 @@ fn preview_file_meta(path: &str, max_file_kb: i64) -> FilePreview {
         sha1: None,
         crc32: None,
         zip_entries: read_zip_entries(path),
+        text_preview: None,
+        text_preview_truncated: false,
     };
 
     let Ok(mut file) = std::fs::File::open(path) else {
@@ -256,6 +263,11 @@ fn preview_file_meta(path: &str, max_file_kb: i64) -> FilePreview {
         }
     }
 
+    let (text_preview, text_preview_truncated) = text_preview_kind(path)
+        .and_then(|kind| read_text_preview(path, kind))
+        .map(|(text, truncated)| (Some(text), truncated))
+        .unwrap_or((None, false));
+
     FilePreview {
         exists: true,
         too_large: false,
@@ -269,7 +281,68 @@ fn preview_file_meta(path: &str, max_file_kb: i64) -> FilePreview {
                 .collect(),
         ),
         crc32: Some(format!("{:08x}", crc32_hasher.finalize())),
+        text_preview,
+        text_preview_truncated,
         ..base
+    }
+}
+
+const TEXT_PREVIEW_EXTENSIONS: &[&str] = &[
+    "txt", "md", "log", "json", "xml", "yaml", "yml", "toml", "ini", "cfg", "conf", "csv", "c",
+    "h", "cpp", "cc", "cxx", "hpp", "hh", "cs", "java", "kt", "go", "rs", "rb", "py", "php", "sh",
+    "bash", "ps1", "sql", "swift", "html", "htm", "css", "scss", "js", "jsx", "ts", "tsx", "vue",
+    "svelte",
+];
+
+/// Caps how much text is read into a preview, so a huge log file or PDF doesn't stall the
+/// UI or bloat memory — the point is a quick look, not a full viewer.
+const MAX_TEXT_PREVIEW_BYTES: usize = 200_000;
+
+enum TextPreviewKind {
+    PlainText,
+    Pdf,
+}
+
+fn text_preview_kind(path: &str) -> Option<TextPreviewKind> {
+    let ext = std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase())?;
+    if ext == "pdf" {
+        Some(TextPreviewKind::Pdf)
+    } else if TEXT_PREVIEW_EXTENSIONS.contains(&ext.as_str()) {
+        Some(TextPreviewKind::PlainText)
+    } else {
+        None
+    }
+}
+
+/// Returns the preview text and whether it was truncated to fit `MAX_TEXT_PREVIEW_BYTES`.
+/// `None` if the file can't be read as text (or, for PDFs, has no extractable text layer —
+/// e.g. a scanned image with no OCR).
+fn read_text_preview(path: &str, kind: TextPreviewKind) -> Option<(String, bool)> {
+    match kind {
+        TextPreviewKind::PlainText => {
+            let bytes = std::fs::read(path).ok()?;
+            let truncated = bytes.len() > MAX_TEXT_PREVIEW_BYTES;
+            let slice = &bytes[..bytes.len().min(MAX_TEXT_PREVIEW_BYTES)];
+            Some((String::from_utf8_lossy(slice).into_owned(), truncated))
+        }
+        TextPreviewKind::Pdf => {
+            let text = pdf_extract::extract_text(path).ok()?;
+            if text.trim().is_empty() {
+                return None;
+            }
+            let truncated = text.len() > MAX_TEXT_PREVIEW_BYTES;
+            if !truncated {
+                return Some((text, false));
+            }
+            let mut end = MAX_TEXT_PREVIEW_BYTES;
+            while !text.is_char_boundary(end) {
+                end -= 1;
+            }
+            Some((text[..end].to_string(), true))
+        }
     }
 }
 
@@ -439,5 +512,25 @@ pub fn show_settings_window(app: AppHandle) -> Result<(), String> {
     // statically and just shown/hidden), so fields like the stats need to be re-fetched
     // every time the window is shown again, not only on its first load.
     let _ = app.emit("settings-shown", ());
+    Ok(())
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ViewerEntryPayload {
+    id: i64,
+    title: String,
+}
+
+#[tauri::command]
+pub fn show_viewer_window(app: AppHandle, id: i64, title: String) -> Result<(), String> {
+    let window = app
+        .get_webview_window("viewer")
+        .ok_or("viewer window not found")?;
+    window.show().map_err(|err| err.to_string())?;
+    window.set_focus().map_err(|err| err.to_string())?;
+    // Same static-window-kept-alive pattern as settings: the window is created once, so
+    // tell it (and re-tell it, if it's already open on a different entry) what to show.
+    let _ = app.emit("viewer-entry", ViewerEntryPayload { id, title });
     Ok(())
 }

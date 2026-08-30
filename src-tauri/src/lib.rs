@@ -61,6 +61,7 @@ pub fn run() {
             commands::get_stats,
             commands::set_hotkey,
             commands::show_settings_window,
+            commands::show_viewer_window,
             commands::should_show_onboarding,
             commands::mark_onboarding_seen,
         ])
@@ -118,10 +119,10 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                // Both windows are declared statically and created once at startup, so closing
+                // All windows are declared statically and created once at startup, so closing
                 // one for real (destroying it) would leave no way to show it again without
                 // restarting the app. Hide instead, exactly like the main popup does.
-                if window.label() == "main" || window.label() == "settings" {
+                if window.label() == "main" || window.label() == "settings" || window.label() == "viewer" {
                     window.hide().ok();
                     api.prevent_close();
                 }

@@ -29,6 +29,18 @@
         "visible": false,
         "resizable": true,
         "center": true
+      },
+      {
+        "label": "viewer",
+        "url": "viewer.html",
+        "title": "ClipVault",
+        "width": 900,
+        "height": 680,
+        "minWidth": 480,
+        "minHeight": 360,
+        "visible": false,
+        "resizable": true,
+        "center": true
       }
     ],
     "security": {

@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ClipVault</title>
     <script src="/i18n.js"></script>
+    <script src="/preview-render.js"></script>
     <script type="module" src="/main.js" defer></script>
   </head>
 
@@ -54,6 +55,7 @@
       <div class="onboarding-box preview-box">
         <div class="preview-header">
           <span id="preview-title"></span>
+          <button id="preview-expand" type="button" class="text-btn icon-btn" data-i18n-title="previewExpand">⛶</button>
           <button id="preview-close" type="button" class="text-btn icon-btn" data-i18n-title="previewClose">×</button>
         </div>
         <div id="preview-content" class="preview-content"></div>

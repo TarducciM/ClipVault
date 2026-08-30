@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClipVault</title>
+    <script src="/i18n.js"></script>
+    <script src="/preview-render.js"></script>
+    <script type="module" src="/viewer.js" defer></script>
+  </head>
+
+  <body>
+    <main class="viewer">
+      <div class="viewer-header">
+        <span id="viewer-title"></span>
+        <button id="viewer-close" type="button" class="text-btn icon-btn" data-i18n-title="previewClose">×</button>
+      </div>
+      <div id="viewer-content" class="viewer-content"></div>
+    </main>
+  </body>
+</html>

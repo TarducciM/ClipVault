@@ -385,6 +385,17 @@ body {
   border-radius: 4px;
 }
 
+.preview-image.zoomable {
+  cursor: zoom-in;
+}
+
+.preview-image.zoomed {
+  max-width: none;
+  max-height: none;
+  cursor: zoom-out;
+  margin: 0;
+}
+
 .preview-note {
   margin: 0 0 10px;
   font-size: 0.8em;
@@ -424,6 +435,61 @@ body {
   padding-left: 16px;
   max-height: 120px;
   overflow-y: auto;
+}
+
+.viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+}
+
+.viewer-header span {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewer-header button {
+  width: auto;
+  flex-shrink: 0;
+  background: transparent;
+  color: inherit;
+  padding: 2px 8px;
+  font-size: 1.2em;
+}
+
+.viewer-header button:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.viewer-content {
+  flex: 1;
+  overflow: auto;
+  padding: 18px;
+}
+
+.viewer-content .preview-image {
+  max-height: 85vh;
+}
+
+.viewer-content .preview-text {
+  max-height: none;
+}
+
+.viewer-content .code-preview {
+  max-height: 65vh;
 }
 
 .stats-table {
@@ -667,6 +733,14 @@ kbd {
   }
 
   .preview-header button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .viewer-header {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .viewer-header button:hover {
     background-color: rgba(255, 255, 255, 0.1);
   }
 
