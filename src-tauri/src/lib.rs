@@ -8,7 +8,28 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager, WindowEvent,
 };
+use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutEvent, ShortcutState};
+
+/// Installer-invoked helper mode: `--enable-autostart` / `--disable-autostart` on the command
+/// line make ClipVault apply the choice made on the installer's "additional tasks" page and
+/// exit immediately, without showing any window. Going through this exact plugin call (instead
+/// of the installer writing the Run-key registry value itself) guarantees it can never drift
+/// from what the in-app Settings toggle does (see commands::save_settings).
+fn apply_autostart_cli_flag(app: &tauri::AppHandle, args: &[String]) -> bool {
+    let enable = args.iter().any(|a| a == "--enable-autostart");
+    let disable = args.iter().any(|a| a == "--disable-autostart");
+    if !enable && !disable {
+        return false;
+    }
+    let autolaunch = app.autolaunch();
+    let result = if enable { autolaunch.enable() } else { autolaunch.disable() };
+    if let Err(err) = result {
+        let action = if enable { "enable" } else { "disable" };
+        eprintln!("clipvault: failed to {action} autostart via CLI flag: {err}");
+    }
+    true
+}
 
 fn toggle_main_window(app: &tauri::AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
@@ -31,11 +52,19 @@ pub(crate) fn shortcut_handler(app: &tauri::AppHandle, _shortcut: &Shortcut, eve
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let cli_args: Vec<String> = std::env::args().collect();
     let mut builder = tauri::Builder::default();
 
     #[cfg(desktop)]
     {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            // A running instance receives the flag here if the installer launched a second
+            // process while ClipVault was already open (e.g. reinstalling/repairing over an
+            // existing install) - the single-instance plugin forwards args instead of letting
+            // that second process start up on its own.
+            if apply_autostart_cli_flag(app, &args) {
+                return;
+            }
             toggle_main_window(app);
         }));
     }
@@ -74,7 +103,12 @@ pub fn run() {
             commands::should_show_onboarding,
             commands::mark_onboarding_seen,
         ])
-        .setup(|app| {
+        .setup(move |app| {
+            if apply_autostart_cli_flag(app.handle(), &cli_args) {
+                app.handle().exit(0);
+                return Ok(());
+            }
+
             // Registered here (not chained with the other .plugin() calls above) because
             // tauri-plugin-updater's Builder needs an AppHandle, only available inside setup.
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
