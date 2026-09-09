@@ -34,12 +34,14 @@ jobs:
           # draft so nothing goes live until reviewed and published by hand
           releaseDraft: true
           prerelease: false
-          # tauri-action's own uploadUpdaterJson is unreliable here (bug 2026-09-09: with
-          # both nsis+msi targets built together on Windows it signs both bundles fine but
-          # then fails to find "the" signature and silently skips latest.json entirely,
-          # even though the .sig files are genuinely on disk). Built manually below instead,
-          # from the NSIS .sig, which is confirmed to always be generated.
-          uploadUpdaterJson: false
+          # Keep this true: it's what makes tauri-bundler produce the updater-specific
+          # .nsis.zip/.sig artifacts at all (confirmed 2026-09-09 - setting it false skips
+          # building them, not just uploading a manifest for them). What's actually broken is
+          # tauri-action's OWN latest.json assembly step on this repo (both nsis+msi targets
+          # built together on Windows: it signs both bundles fine, then fails to find "the"
+          # signature and silently skips latest.json, even though the .sig is genuinely on
+          # disk) - that part is redone by hand a few steps below, from the same NSIS .sig.
+          uploadUpdaterJson: true
 
       # The portable exe needs no setup; drop it anywhere and run it.
       - shell: bash

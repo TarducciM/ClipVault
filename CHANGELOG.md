@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-09 — Release v0.3.5
+
+- Versione alzata a **0.3.5** e taggata, in sostituzione della v0.3.4 (cancellata dal job `cleanup-on-failure`, mai pubblicata — il fix precedente aveva sbagliato: `uploadUpdaterJson: false` non disattiva solo l'upload del manifesto, disattiva anche la generazione stessa del bundle `.nsis.zip`/`.sig` da parte di `tauri-bundler`, quindi lo step di costruzione manuale non trovava più nulla da leggere). Rimesso `uploadUpdaterJson: true` — genera i file, solo l'assemblaggio del JSON di `tauri-action` è inaffidabile, e quello resta corretto a mano.
+
 ## 2026-09-09 — Release v0.3.4
 
 - Versione alzata a **0.3.4** e taggata, in sostituzione della v0.3.3 (cancellata, mai pubblicata): `tauri-action` firmava correttamente NSIS e MSI ma poi falliva a costruire `latest.json` ("Signature not found for the updater JSON"), un bug noto quando si buildano insieme più target Windows. `latest.json` ora viene costruito a mano nel workflow dal `.sig` dell'NSIS (confermato sempre generato), con validazione JSON prima dell'upload — vedi commento in `.github/workflows/release.yml`. Questo è quindi il vero primo rilascio con l'auto-updater davvero funzionante end-to-end.
