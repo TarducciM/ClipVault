@@ -47,8 +47,17 @@ async function load() {
     document.querySelector("#version-line").textContent = `ClipVault v${settings.version}`;
     await loadStats();
   } catch (err) {
-    document.querySelector("main").innerHTML =
-      `<p style="padding:16px;color:#c82828;">Errore nel caricamento delle impostazioni: ${err}</p>`;
+    // Deliberately NOT replacing <main>'s content here: this window is created once and
+    // just shown/hidden afterwards (see show_settings_window in commands.rs), so wiping
+    // the form fields on a failed load used to be permanent — every later "settings-shown"
+    // re-fired load(), which then always failed at the very first querySelector().value
+    // (the field no longer existed), masking the original error behind an endless loop of
+    // "Cannot set properties of null". Report the error non-destructively instead, so the
+    // fields survive and a later load() (settings-shown fires again, or a transient backend
+    // hiccup clears up) can still succeed.
+    console.error("failed to load settings", err);
+    const status = document.querySelector("#save-status");
+    if (status) status.textContent = `${I18n.t("settingsErrorPrefix")}: ${err}`;
   }
 }
 
