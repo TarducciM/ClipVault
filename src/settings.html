@@ -6,12 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Impostazioni ClipVault</title>
     <script src="/i18n.js"></script>
+    <script src="/updater.js"></script>
     <script type="module" src="/settings.js" defer></script>
   </head>
 
   <body>
     <main class="settings">
       <h1 data-i18n="settingsTitle">Impostazioni</h1>
+
+      <div id="update-banner" class="update-banner" hidden>
+        <span id="update-banner-text"></span>
+        <button id="update-banner-action" type="button" data-i18n="updaterUpdateNow" hidden>Aggiorna ora</button>
+      </div>
 
       <label class="field">
         <span data-i18n="settingsLanguageLabel">Lingua</span>
@@ -89,6 +95,10 @@
           <li><kbd>Esc</kbd> <span data-i18n="shortcutEsc"></span></li>
           <li data-i18n="shortcutContextMenu"></li>
         </ul>
+      </div>
+
+      <div class="settings-actions">
+        <button id="check-update-btn" type="button" data-i18n="updaterCheckBtn">Cerca aggiornamenti</button>
       </div>
 
       <p id="version-line" class="version-line"></p>

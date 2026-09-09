@@ -48,6 +48,7 @@ pub fn run() {
             Some(vec![]),
         ))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             commands::get_history,
             commands::toggle_pin,
@@ -74,6 +75,10 @@ pub fn run() {
             commands::mark_onboarding_seen,
         ])
         .setup(|app| {
+            // Registered here (not chained with the other .plugin() calls above) because
+            // tauri-plugin-updater's Builder needs an AppHandle, only available inside setup.
+            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+
             let app_data_dir = app.path().app_data_dir()?;
             let images_dir = app_data_dir.join("images");
             std::fs::create_dir_all(&images_dir)?;

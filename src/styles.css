@@ -630,6 +630,36 @@ kbd {
   color: rgba(0, 0, 0, 0.5);
 }
 
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(57, 108, 216, 0.35);
+  background-color: rgba(57, 108, 216, 0.1);
+  font-size: 0.9em;
+}
+
+.update-banner button {
+  flex-shrink: 0;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  padding: 4px 10px;
+  font-size: 0.9em;
+  font-weight: 500;
+  cursor: pointer;
+  background-color: #396cd8;
+  color: #ffffff;
+}
+
+.update-banner button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .version-line {
   margin: 0;
   text-align: center;
@@ -801,6 +831,11 @@ kbd {
 
   .save-status {
     color: rgba(255, 255, 255, 0.55);
+  }
+
+  .update-banner {
+    border-color: rgba(120, 160, 255, 0.35);
+    background-color: rgba(120, 160, 255, 0.12);
   }
 
   .version-line {

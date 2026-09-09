@@ -26,14 +26,15 @@ jobs:
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'ClipVault ${{ github.ref_name }}'
           # draft so nothing goes live until reviewed and published by hand
           releaseDraft: true
           prerelease: false
-          # no auto-updater configured yet (no signing key) — plain installers only
-          uploadUpdaterJson: false
+          uploadUpdaterJson: true
 
       # The portable exe needs no setup; drop it anywhere and run it.
       - shell: bash

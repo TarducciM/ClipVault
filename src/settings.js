@@ -35,6 +35,24 @@ function formatBytes(bytes) {
   return `${value.toFixed(1)} ${units[i]}`;
 }
 
+function showUpdateBanner(message, showAction) {
+  const banner = document.querySelector("#update-banner");
+  const action = document.querySelector("#update-banner-action");
+  document.querySelector("#update-banner-text").textContent = message;
+  action.hidden = !showAction;
+  action.disabled = false;
+  banner.hidden = false;
+}
+
+async function runUpdateCheck(manual) {
+  const result = await Updater.checkForUpdate();
+  if (result.available) {
+    showUpdateBanner(I18n.t("updaterAvailable", { version: result.version }), true);
+  } else if (manual) {
+    showUpdateBanner(I18n.t("updaterUpToDate"), false);
+  }
+}
+
 async function load() {
   try {
     const settings = await invoke("get_settings");
@@ -46,6 +64,9 @@ async function load() {
     document.querySelector("#autostart").checked = settings.autostart;
     document.querySelector("#version-line").textContent = `ClipVault v${settings.version}`;
     await loadStats();
+    // Silent unless an update is actually available — a manual check (button below)
+    // also reports "you're up to date" so the button doesn't look like it did nothing.
+    runUpdateCheck(false);
   } catch (err) {
     // Deliberately NOT replacing <main>'s content here: this window is created once and
     // just shown/hidden afterwards (see show_settings_window in commands.rs), so wiping
@@ -131,6 +152,23 @@ window.addEventListener("DOMContentLoaded", () => {
   document.querySelector("#save-btn").addEventListener("click", save);
   document.querySelector("#export-btn").addEventListener("click", exportHistory);
   document.querySelector("#import-btn").addEventListener("click", importHistory);
+  document.querySelector("#check-update-btn").addEventListener("click", () => runUpdateCheck(true));
+  document.querySelector("#update-banner-action").addEventListener("click", () => {
+    const action = document.querySelector("#update-banner-action");
+    action.disabled = true;
+    const text = document.querySelector("#update-banner-text");
+    text.textContent = I18n.t("updaterDownloading");
+    Updater.installPendingUpdate((downloaded, total) => {
+      if (total > 0) {
+        text.textContent = I18n.t("updaterDownloadingProgress", {
+          percent: String(Math.round((downloaded / total) * 100)),
+        });
+      }
+    }).catch((err) => {
+      text.textContent = I18n.t("updaterError", { error: String(err) });
+      action.disabled = false;
+    });
+  });
   load();
 });
 

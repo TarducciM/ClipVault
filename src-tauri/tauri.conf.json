@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ClipVault",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "identifier": "com.clipvault.app",
   "build": {
     "frontendDist": "../src"
@@ -57,5 +57,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJCODYxRjVDNjk3RDkyRkQKUldUOWtuMXBYQitHSzIrSEV4ZHUyWlhsaHdxWndVQ0s1RnVMaEp3cVMrajdqR2M3bWljTE1Rd3AK",
+      "endpoints": ["https://github.com/TarducciM/ClipVault/releases/latest/download/latest.json"]
+    }
   }
 }

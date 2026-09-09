@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-09 — Release v0.3.3
+
+- Versione alzata a **0.3.3** e taggata: aggiunto l'auto-updater (vedi voce sotto). È il primo rilascio in grado di essere trovato dall'updater di una versione futura — chi ha la 0.3.2 o precedenti deve ancora aggiornare a mano questa volta, poi da qui in avanti l'app se ne accorge da sola.
+
+## 2026-09-09 — Auto-updater in-app
+
+- **`tauri-plugin-updater` + `tauri-plugin-process`** aggiunti (stesso pattern già in uso in MD-Viewer): controllo automatico ogni volta che si apre la finestra Impostazioni, più un pulsante "Cerca aggiornamenti" per un controllo manuale esplicito (che segnala anche "hai già l'ultima versione", non solo silenzio). Se disponibile, un banner in cima a Impostazioni offre "Aggiorna ora" con percentuale di avanzamento durante lo scaricamento, poi riavvia l'app da sola.
+- Chiave di firma generata (`tauri signer generate`, senza password — modello di minaccia basso, vedi `MTSolutions/CLAUDE.md`), pubblica in `tauri.conf.json`, privata salvata come secret GitHub (`TAURI_SIGNING_PRIVATE_KEY`) più backup nelle note esterne del progetto — mai nel repo. `release.yml` ora firma davvero i pacchetti e pubblica `latest.json` (`uploadUpdaterJson: true`, prima disattivato perché non c'era ancora una chiave).
+- **Verificato dal vivo**, non solo compilato: app lanciata in dev con il debug remoto di WebView2 attivo, collegato via CDP e confermato che `window.__TAURI__.updater`/`.process` esistono davvero (con `withGlobalTauri` + plugin non caricati via import, a differenza di MD-Viewer che è bundlerizzato) — non era scontato senza un precedente diretto in questo repo. Cliccato per davvero il pulsante "Cerca aggiornamenti" e confermato che il banner appare col testo corretto, zero errori console.
+
 ## 2026-09-09 — Release v0.3.2
 
 - Versione alzata a **0.3.2** e taggata: fix della finestra Impostazioni che si rompeva per sempre dopo un errore (vedi voce sotto).
