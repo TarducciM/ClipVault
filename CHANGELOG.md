@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-09 — Release v0.3.8
+
+- Versione alzata a **0.3.8**, in sostituzione della v0.3.7 (cancellata, mai pubblicata). Il fix precedente (`createUpdaterArtifacts`) era corretto e ha fatto comparire davvero il file `.sig` — ma per un `.exe`, non per uno zip: **NSIS in Tauri v2 firma il setup.exe direttamente, nessun `.nsis.zip`** (l'assunzione di uno zip era sbagliata, probabilmente presa in prestito dal comportamento dell'MSI). `latest.json` ora punta al `.exe` già caricato come asset normale, con la sua firma.
+
 ## 2026-09-09 — Release v0.3.7
 
 - Versione alzata a **0.3.7**, in sostituzione della v0.3.6 (cancellata, mai pubblicata). **Causa vera trovata**, grazie alla diagnostica aggiunta nella 0.3.6: la cartella `nsis/` conteneva solo il `.exe`, nessun `.sig` — nemmeno per il file semplice, non solo per lo zip dell'updater. `tauri-bundler` non stava firmando **nulla**, a prescindere dai secret. Mancava `"createUpdaterArtifacts": true` in `src-tauri/tauri.conf.json` (sezione `bundle`) — senza quel flag esplicito, tauri-bundler non genera proprio gli artefatti per l'updater (zip + firma), qualunque altra configurazione ci sia intorno. Aggiunto.

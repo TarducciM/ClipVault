@@ -54,30 +54,27 @@ jobs:
           gh release upload "${{ github.ref_name }}" "$portable" --repo "${{ github.repository }}" --clobber
 
       # Manual latest.json for tauri-plugin-updater — see the comment on uploadUpdaterJson
-      # above for why this isn't left to tauri-action. The NSIS .nsis.zip (not the raw
-      # setup.exe) is what the updater actually downloads and unpacks; it's uploaded here
-      # purely for that purpose, alongside the human-facing setup.exe/msi/portable builds.
+      # above for why this isn't left to tauri-action. Turns out (found via the diagnostic
+      # below, 2026-09-09) tauri-bundler signs the raw setup.exe directly for NSIS — no
+      # .nsis.zip wrapper is produced (that assumption was wrong, maybe carried over from
+      # MSI's zip-wrapped updater format). The signed .exe is already uploaded as a normal
+      # release asset by the tauri-action step above, so this step only needs its .sig.
       - shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version="${GITHUB_REF_NAME#v}"
           nsis_dir="src-tauri/target/release/bundle/nsis"
-          zip_file="$nsis_dir/ClipVault_${version}_x64-setup.nsis.zip"
-          sig_file="$zip_file.sig"
+          exe_file="$nsis_dir/ClipVault_${version}_x64-setup.exe"
+          sig_file="$exe_file.sig"
 
-          if [ ! -f "$zip_file" ] || [ ! -f "$sig_file" ]; then
-            echo "::error::NSIS updater bundle or signature missing ($zip_file)"
+          if [ ! -f "$sig_file" ]; then
+            echo "::error::NSIS updater signature missing ($sig_file)"
             echo "::group::Diagnostic - actual contents of $nsis_dir"
             ls -la "$nsis_dir" 2>&1 || echo "(directory itself does not exist)"
             echo "::endgroup::"
-            echo "::group::Diagnostic - full search for any .nsis.zip / .sig anywhere in target/"
-            find src-tauri/target -iname "*.nsis.zip*" -o -iname "*setup.exe.sig" 2>&1
-            echo "::endgroup::"
             exit 1
           fi
-
-          gh release upload "${{ github.ref_name }}" "$zip_file" --repo "${{ github.repository }}" --clobber
 
           signature=$(cat "$sig_file")
           pub_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -90,7 +87,7 @@ jobs:
             "platforms": {
               "windows-x86_64": {
                 "signature": "${signature}",
-                "url": "${base}/ClipVault_${version}_x64-setup.nsis.zip"
+                "url": "${base}/ClipVault_${version}_x64-setup.exe"
               }
             }
           }
