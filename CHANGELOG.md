@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-09 — Release v0.3.2
+
+- Versione alzata a **0.3.2** e taggata: fix della finestra Impostazioni che si rompeva per sempre dopo un errore (vedi voce sotto).
+
+## 2026-09-09 — Fix: la finestra Impostazioni si rompeva per sempre dopo un errore
+
+- **Bug segnalato dall'utente**: aprendo Impostazioni compariva "Errore nel caricamento delle impostazioni: TypeError: Cannot set properties of null (setting 'value')", sempre, anche riaprendo la finestra più volte.
+- **Causa**: `load()` in caso di fallimento sostituiva tutto il contenuto di `<main>` col messaggio d'errore — ma la finestra Impostazioni è creata una sola volta e resta viva in background (solo mostrata/nascosta tramite l'evento `settings-shown`), quindi quella sostituzione cancellava per sempre i campi del form dal DOM. Ogni apertura successiva richiamava `load()`, che falliva subito al primo `querySelector(...).value` (il campo non esisteva più) — un loop permanente fino al riavvio dell'app, che mascherava anche l'errore originale dietro questo sintomo.
+- **Fix**: l'errore ora va in `#save-status` (stesso pattern già usato da `save()`/`exportHistory()`/`importHistory()`) senza toccare il form — un `load()` successivo può ancora andare a buon fine.
+
 ## 2026-08-30 — Release v0.3.1
 
 - Versione alzata a **0.3.1** e taggata: da v0.3.0 sono state aggiunte l'esclusione dei password manager dalla cronologia, il riconoscimento di URL/email/colore, gli snippet fissi ed esporta/importa cronologia (vedi voce sotto per il dettaglio).
