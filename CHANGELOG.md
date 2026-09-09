@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-09 — Release v0.3.6
+
+- Versione alzata a **0.3.6**, in sostituzione della v0.3.5 (cancellata, mai pubblicata — lo stesso errore persisteva anche con `uploadUpdaterJson: true`, quindi la diagnosi precedente non era completa). Aggiunto solo un passo diagnostico (`ls`/`find` sulla cartella `nsis/` reale in caso di fallimento) prima di ritentare, invece di indovinare una terza correzione alla cieca.
+
 ## 2026-09-09 — Release v0.3.5
 
 - Versione alzata a **0.3.5** e taggata, in sostituzione della v0.3.4 (cancellata dal job `cleanup-on-failure`, mai pubblicata — il fix precedente aveva sbagliato: `uploadUpdaterJson: false` non disattiva solo l'upload del manifesto, disattiva anche la generazione stessa del bundle `.nsis.zip`/`.sig` da parte di `tauri-bundler`, quindi lo step di costruzione manuale non trovava più nulla da leggere). Rimesso `uploadUpdaterJson: true` — genera i file, solo l'assemblaggio del JSON di `tauri-action` è inaffidabile, e quello resta corretto a mano.
