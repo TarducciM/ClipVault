@@ -34,7 +34,12 @@ jobs:
           # draft so nothing goes live until reviewed and published by hand
           releaseDraft: true
           prerelease: false
-          uploadUpdaterJson: true
+          # tauri-action's own uploadUpdaterJson is unreliable here (bug 2026-09-09: with
+          # both nsis+msi targets built together on Windows it signs both bundles fine but
+          # then fails to find "the" signature and silently skips latest.json entirely,
+          # even though the .sig files are genuinely on disk). Built manually below instead,
+          # from the NSIS .sig, which is confirmed to always be generated.
+          uploadUpdaterJson: false
 
       # The portable exe needs no setup; drop it anywhere and run it.
       - shell: bash
@@ -45,6 +50,50 @@ jobs:
           portable="ClipVault_${version}_x64-portable.exe"
           cp "src-tauri/target/release/clipvault.exe" "$portable"
           gh release upload "${{ github.ref_name }}" "$portable" --repo "${{ github.repository }}" --clobber
+
+      # Manual latest.json for tauri-plugin-updater — see the comment on uploadUpdaterJson
+      # above for why this isn't left to tauri-action. The NSIS .nsis.zip (not the raw
+      # setup.exe) is what the updater actually downloads and unpacks; it's uploaded here
+      # purely for that purpose, alongside the human-facing setup.exe/msi/portable builds.
+      - shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          nsis_dir="src-tauri/target/release/bundle/nsis"
+          zip_file="$nsis_dir/ClipVault_${version}_x64-setup.nsis.zip"
+          sig_file="$zip_file.sig"
+
+          if [ ! -f "$zip_file" ] || [ ! -f "$sig_file" ]; then
+            echo "::error::NSIS updater bundle or signature missing ($zip_file) - cannot build latest.json"
+            exit 1
+          fi
+
+          gh release upload "${{ github.ref_name }}" "$zip_file" --repo "${{ github.repository }}" --clobber
+
+          signature=$(cat "$sig_file")
+          pub_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          base="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+
+          cat > latest.json <<EOF
+          {
+            "version": "${version}",
+            "pub_date": "${pub_date}",
+            "platforms": {
+              "windows-x86_64": {
+                "signature": "${signature}",
+                "url": "${base}/ClipVault_${version}_x64-setup.nsis.zip"
+              }
+            }
+          }
+          EOF
+
+          # Validate before uploading: a malformed manifest breaks the updater for every
+          # already-installed version silently (no error shown to the user, it just never
+          # finds an update) - catch that here instead, in CI, where it's visible.
+          jq empty latest.json
+
+          gh release upload "${{ github.ref_name }}" latest.json --repo "${{ github.repository }}" --clobber
 
   notes:
     needs: publish

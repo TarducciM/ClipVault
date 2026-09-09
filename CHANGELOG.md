@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-09 — Release v0.3.4
+
+- Versione alzata a **0.3.4** e taggata, in sostituzione della v0.3.3 (cancellata, mai pubblicata): `tauri-action` firmava correttamente NSIS e MSI ma poi falliva a costruire `latest.json` ("Signature not found for the updater JSON"), un bug noto quando si buildano insieme più target Windows. `latest.json` ora viene costruito a mano nel workflow dal `.sig` dell'NSIS (confermato sempre generato), con validazione JSON prima dell'upload — vedi commento in `.github/workflows/release.yml`. Questo è quindi il vero primo rilascio con l'auto-updater davvero funzionante end-to-end.
+
 ## 2026-09-09 — Release v0.3.3
 
 - Versione alzata a **0.3.3** e taggata: aggiunto l'auto-updater (vedi voce sotto). È il primo rilascio in grado di essere trovato dall'updater di una versione futura — chi ha la 0.3.2 o precedenti deve ancora aggiornare a mano questa volta, poi da qui in avanti l'app se ne accorge da sola.
