@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-09 — Release v0.3.7
+
+- Versione alzata a **0.3.7**, in sostituzione della v0.3.6 (cancellata, mai pubblicata). **Causa vera trovata**, grazie alla diagnostica aggiunta nella 0.3.6: la cartella `nsis/` conteneva solo il `.exe`, nessun `.sig` — nemmeno per il file semplice, non solo per lo zip dell'updater. `tauri-bundler` non stava firmando **nulla**, a prescindere dai secret. Mancava `"createUpdaterArtifacts": true` in `src-tauri/tauri.conf.json` (sezione `bundle`) — senza quel flag esplicito, tauri-bundler non genera proprio gli artefatti per l'updater (zip + firma), qualunque altra configurazione ci sia intorno. Aggiunto.
+
 ## 2026-09-09 — Release v0.3.6
 
 - Versione alzata a **0.3.6**, in sostituzione della v0.3.5 (cancellata, mai pubblicata — lo stesso errore persisteva anche con `uploadUpdaterJson: true`, quindi la diagnosi precedente non era completa). Aggiunto solo un passo diagnostico (`ls`/`find` sulla cartella `nsis/` reale in caso di fallimento) prima di ritentare, invece di indovinare una terza correzione alla cieca.
