@@ -23,7 +23,11 @@ fn apply_autostart_cli_flag(app: &tauri::AppHandle, args: &[String]) -> bool {
         return false;
     }
     let autolaunch = app.autolaunch();
-    let result = if enable { autolaunch.enable() } else { autolaunch.disable() };
+    let result = if enable {
+        autolaunch.enable()
+    } else {
+        autolaunch.disable()
+    };
     if let Err(err) = result {
         let action = if enable { "enable" } else { "disable" };
         eprintln!("clipvault: failed to {action} autostart via CLI flag: {err}");
