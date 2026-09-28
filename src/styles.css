@@ -643,6 +643,10 @@ kbd {
   font-size: 0.9em;
 }
 
+.update-banner[hidden] {
+  display: none;
+}
+
 .update-banner button {
   flex-shrink: 0;
   border-radius: 6px;

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-28 — Fix: notifica aggiornamenti invisibile nelle Impostazioni
+
+- **Bug segnalato dall'utente**: cliccando "Cerca aggiornamenti" (in fondo alla pagina Impostazioni, che è scrollabile) l'esito ("hai già l'ultima versione" / "aggiornamento disponibile") appariva nel banner in cima alla pagina, fuori dallo schermo — bisognava scorrere su a mano per accorgersi che il pulsante aveva fatto qualcosa. Sistemato facendo scorrere automaticamente il banner in vista (`scrollIntoView`) ogni volta che mostra un messaggio.
+- **Bug trovato durante la verifica, non segnalato ma reale**: il banner degli aggiornamenti risultava sempre visibile come riquadro vuoto (bordo azzurro, nessun testo) anche prima di aver mai controllato gli aggiornamenti, perché la regola CSS `.update-banner { display: flex }` sovrascriveva l'attributo HTML `hidden` dell'elemento. Aggiunta la regola `.update-banner[hidden] { display: none }` che mancava.
+- Verificato dal vivo con l'app in esecuzione (build di sviluppo, non quella di produzione dell'utente, riavviata a fine verifica): cliccato "Cerca aggiornamenti" in fondo alla pagina, la pagina è scorsa automaticamente in cima mostrando "Hai già l'ultima versione."; confermato che a riposo il banner non mostra più il riquadro vuoto.
+
 ## 2026-09-09 — Scelte installer: collegamento sul desktop e avvio con Windows (0.3.9)
 
 - **Nuova pagina "Additional Tasks" nell'installer NSIS (.exe)**: inserita tra la pagina del menu Start e quella di copia file. Contiene la scelta "Launch ClipVault automatically when Windows starts" (di default deselezionata, coerente col default dell'app). Il collegamento sul desktop era **già** una scelta esistente (checkbox `$(createDesktop)` riusando lo slot `MUI_FINISHPAGE_SHOWREADME` della pagina finale di MUI2) — non toccato, solo verificato che ci fosse già.

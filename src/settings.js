@@ -42,6 +42,10 @@ function showUpdateBanner(message, showAction) {
   action.hidden = !showAction;
   action.disabled = false;
   banner.hidden = false;
+  // The banner lives at the top of the page but the button that triggers a manual check
+  // is at the bottom of a long scrollable settings list — without this, "up to date" /
+  // "update available" appears off-screen and looks like the button did nothing.
+  banner.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function runUpdateCheck(manual) {
