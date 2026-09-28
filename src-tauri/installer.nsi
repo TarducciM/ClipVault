@@ -76,9 +76,11 @@ Var NoShortcutMode
 Var WixMode
 Var OldMainBinaryName
 
-; ClipVault: "Select Additional Tasks" page (launch at Windows startup)
+; ClipVault: "Select Additional Tasks" page (launch at Windows startup, Start Menu shortcut)
 Var EnableAutostart
 Var EnableAutostartCheckbox
+Var CreateStartMenuShortcut
+Var CreateStartMenuShortcutCheckbox
 
 Name "${PRODUCTNAME}"
 BrandingText "${COPYRIGHT}"
@@ -427,11 +429,20 @@ Function PageAdditionalTasks
     ${EndIf}
   ${EndIf}
 
+  ; Default to checked, matching the unconditional creation this checkbox replaces.
+  ${If} $CreateStartMenuShortcut == ""
+    StrCpy $CreateStartMenuShortcut 1
+  ${EndIf}
+
   !insertmacro MUI_HEADER_TEXT "Additional Tasks" "Choose additional options for ${PRODUCTNAME}"
 
   nsDialogs::Create 1018
   Pop $0
   ${IfThen} $(^RTL) = 1 ${|} nsDialogs::SetRTL $(^RTL) ${|}
+
+  ${NSD_CreateCheckbox} 0 0u 100% 12u "Create a Start Menu shortcut"
+  Pop $CreateStartMenuShortcutCheckbox
+  ${IfThen} $CreateStartMenuShortcut == 1 ${|} ${NSD_SetState} $CreateStartMenuShortcutCheckbox ${BST_CHECKED} ${|}
 
   ${NSD_CreateCheckbox} 0 20u 100% 12u "Launch ${PRODUCTNAME} automatically when Windows starts"
   Pop $EnableAutostartCheckbox
@@ -440,6 +451,7 @@ Function PageAdditionalTasks
   nsDialogs::Show
 FunctionEnd
 Function PageLeaveAdditionalTasks
+  ${NSD_GetState} $CreateStartMenuShortcutCheckbox $CreateStartMenuShortcut
   ${NSD_GetState} $EnableAutostartCheckbox $EnableAutostart
 FunctionEnd
 
@@ -989,13 +1001,16 @@ Function CreateOrUpdateStartMenuShortcut
     Return
   ${EndIf}
 
-  ; Skip creating shortcut if in update mode or no shortcut mode
-  ; but always create if migrating from wix
+  ; Skip creating shortcut if in update mode, no shortcut mode, or the user unchecked it on
+  ; the Additional Tasks page - but always create if migrating from wix. $CreateStartMenuShortcut
+  ; stays empty (not 0) for silent/passive installs, which skip that page entirely, so this
+  ; preserves the old unconditional-creation behavior for those.
   ${If} $WixMode = 0
     ${If} $UpdateMode = 1
     ${OrIf} $NoShortcutMode = 1
       Return
     ${EndIf}
+    ${IfThen} $CreateStartMenuShortcut = 0 ${|} Return ${|}
   ${EndIf}
 
   !if "${STARTMENUFOLDER}" != ""

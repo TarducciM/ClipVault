@@ -38,8 +38,9 @@
         <Property Id="LAUNCHAPPARGS" Secure="yes" />
 
         <!-- ClipVault: "Additional Tasks" dialog choices (see AdditionalTasksDlg below).
-             Desktop shortcut defaults on, matching the unconditional behavior before this
+             Shortcut checkboxes default on, matching the unconditional behavior before this
              choice existed; autostart defaults off, matching the app's own default. -->
+        <Property Id="INSTALLSTARTMENUSHORTCUT" Secure="yes" Value="1" />
         <Property Id="INSTALLDESKTOPSHORTCUT" Secure="yes" Value="1" />
         <Property Id="ENABLEAUTOSTART" Secure="yes" />
 
@@ -67,7 +68,12 @@
 
         <Icon Id="ProductIcon" SourceFile="{{icon_path}}"/>
         <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
-        <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />      <!-- Remove repair -->
+        <!-- ClipVault: Repair intentionally left enabled (no ARPNOREPAIR) - REINSTALLMODE
+             "amus" above is exactly what a Repair from Programs & Features / Settings > Apps
+             runs, and it's the only piece of the standard repair/update/uninstall/reinstall
+             set of operations that's genuinely MSI-only (NSIS has no such concept). Modify is
+             still hidden: there's no feature tree meant for end users here, just the pre-install
+             checkboxes in AdditionalTasksDlg below. -->
         <SetProperty Id="ARPNOMODIFY" Value="1" After="InstallValidate" Sequence="execute"/>
 
         {{#if homepage}}
@@ -154,11 +160,15 @@
                     <Text>Choose additional options for {{product_name}}</Text>
                 </Control>
 
-                <Control Id="DesktopShortcutCheckbox" Type="CheckBox" X="20" Y="65" Width="330" Height="18"
+                <Control Id="StartMenuShortcutCheckbox" Type="CheckBox" X="20" Y="65" Width="330" Height="18"
+                         Property="INSTALLSTARTMENUSHORTCUT" CheckBoxValue="1">
+                    <Text>Create a Start Menu shortcut</Text>
+                </Control>
+                <Control Id="DesktopShortcutCheckbox" Type="CheckBox" X="20" Y="90" Width="330" Height="18"
                          Property="INSTALLDESKTOPSHORTCUT" CheckBoxValue="1">
                     <Text>Create a desktop shortcut</Text>
                 </Control>
-                <Control Id="AutostartCheckbox" Type="CheckBox" X="20" Y="90" Width="330" Height="18"
+                <Control Id="AutostartCheckbox" Type="CheckBox" X="20" Y="115" Width="330" Height="18"
                          Property="ENABLEAUTOSTART" CheckBoxValue="1">
                     <Text>Launch {{product_name}} automatically when Windows starts</Text>
                 </Control>
@@ -314,14 +324,20 @@
                 Level="1">
                 <ComponentRef Id="Path"/>
                 <ComponentRef Id="CMP_UninstallShortcut" />
-                <ComponentRef Id="ApplicationShortcut" />
             </Feature>
 
-            <!-- ClipVault: split out from ShortcutsFeature so AdditionalTasksDlg's checkbox can
-                 control it. Level="1000" (well above the default install level of 1, so absent
-                 by default) with a Condition that drops it to Level="1" (installed) when the
-                 checkbox's property is set - the standard WiX pattern for an optional feature
-                 with no feature-tree UI. -->
+            <!-- ClipVault: both split out from ShortcutsFeature so AdditionalTasksDlg's checkboxes
+                 can control them independently. Level="1000" (well above the default install
+                 level of 1, so absent by default) with a Condition that drops it to Level="1"
+                 (installed) when the checkbox's property is set - the standard WiX pattern for
+                 an optional feature with no feature-tree UI. -->
+            <Feature Id="StartMenuShortcutFeature"
+                Title="Start Menu Shortcut"
+                Level="1000">
+                <ComponentRef Id="ApplicationShortcut" />
+                <Condition Level="1">INSTALLSTARTMENUSHORTCUT = "1"</Condition>
+            </Feature>
+
             <Feature Id="DesktopShortcutFeature"
                 Title="Desktop Shortcut"
                 Level="1000">
