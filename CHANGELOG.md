@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-28 — Release v0.3.10
+
+- Versione alzata a **0.3.10** e taggata: da v0.3.9 sono stati aggiunti il fix del banner aggiornamenti invisibile nelle Impostazioni e le due migliorie all'installer (casella collegamento menu Start, Repair via MSI) — vedi le due voci sotto per il dettaglio.
+
 ## 2026-09-28 — Installer: casella collegamento menu Start, Repair via MSI abilitato
 
 - **Richiesto dall'utente**: possibilità di ripara/aggiorna/disinstalla/disinstalla-e-reinstalla dall'installer, più una casella per il collegamento nel menu Start (già esisteva per l'avvio automatico, e per il desktop tramite il trucco della pagina finale). Confermato anche da una nuova regola in `MTSolutions/CLAUDE.md` ("Regola: installer Windows con ripara/aggiorna/disinstalla + collegamenti a scelta") che vale per tutte le app con installer Windows, ClipVault inclusa.
